@@ -5,27 +5,23 @@ import firebase_admin
 from firebase_admin import credentials, firestore, storage
 
 # ————————————————
-# Inicializar Firebase
+# Inicializar Firebase (ajuste para lstrip en private_key)
 # ————————————————
 if not firebase_admin._apps:
-    # Leer configuración de credenciales
     cfg = st.secrets["firebase"]
-    # Inicializar la app con la clave de servicio
+    # Convertir a dict y quitar salto de línea inicial de private_key
+    cfg = cfg.to_dict() if hasattr(cfg, "to_dict") else dict(cfg)
+    cfg["private_key"] = cfg["private_key"].lstrip()
     cred = credentials.Certificate(cfg)
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
 
-# Determinar nombre de bucket con fallback
-bucket_name = (
-    st.secrets.get("firebase_storage_bucket")
-    or st.secrets["firebase"].get("firebase_storage_bucket")
-    or st.secrets["firebase"].get("storageBucket")
-)
+# Recuperar bucket
+bucket_name = st.secrets.get("firebase_storage_bucket")
 if not bucket_name:
     st.error("❌ No está configurado 'firebase_storage_bucket' en secrets.")
     st.stop()
-
 bucket = storage.bucket(bucket_name)
 
 # ————————————————
@@ -107,14 +103,11 @@ with col3:
 # ————————————————
 st.markdown("---")
 st.header("Adjuntar archivo de conciliación")
-uploaded_file = st.file_uploader("Selecciona archivo (.xlsx, .pdf, .docx)", type=["xlsx", "pdf", "docx"])
+uploaded_file = st.file_uploader("Selecciona archivo (.xlsx, .pdf, .docx)", type=["xlsx","pdf","docx"])
 if uploaded_file and st.button("Subir documento"):
-    try:
-        blob = bucket.blob(f"{selected}/{uploaded_file.name}")
-        blob.upload_from_string(
-            uploaded_file.getvalue(),
-            content_type=uploaded_file.type
-        )
-        st.success("Archivo subido exitosamente.")
-    except Exception as e:
-        st.error(f"Error subiendo archivo: {e}")
+    blob = bucket.blob(f"{selected}/{uploaded_file.name}")
+    blob.upload_from_string(
+        uploaded_file.getvalue(),
+        content_type=uploaded_file.type
+    )
+    st.success("Archivo subido exitosamente.")
