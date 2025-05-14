@@ -1,50 +1,73 @@
 import streamlit as st
 import json
 import traceback
-from firebase_admin import credentials
+from firebase_admin import credentials, firestore, storage, initialize_app, _apps
+import firebase_admin
 
-st.title("🔧 Deep Debug Firebase Creds")
+st.title("🔧 Ultra-Debug Firebase Creds")
 
-# Mostrar raw service_account
-raw = st.secrets.get("service_account")
-st.subheader("service_account raw repr (prim. 300 chars):")
+raw = st.secrets.get("service_account", "")
+st.subheader("1) Raw service_account (repr 300 chars)")
 st.code(repr(raw)[:300] + "…", language="python")
 
-# Intentar parsear JSON
-st.subheader("Parse JSON de service_account")
+# 2) Parse JSON
+st.subheader("2) Parse JSON")
 try:
     sa_info = json.loads(raw)
-    st.success("✅ JSON parseado correctamente")
-    st.write("Claves JSON:", list(sa_info.keys()))
+    st.success("✅ JSON válido")
+    st.write("Claves encontradas:", list(sa_info.keys()))
 except Exception as e:
-    st.error("❌ Error al parsear JSON:")
+    st.error("❌ Error parseando JSON:")
     st.error(str(e))
     st.text(traceback.format_exc())
     st.stop()
 
-# Analizar private_key
-pk = sa_info.get("private_key")
-st.subheader("Detalle de private_key")
-st.write("Tipo de private_key:", type(pk))
-if isinstance(pk, str):
-    st.write("Longitud de private_key:", len(pk))
-    lines = pk.split("\\n") if "\\n" in pk else pk.split("\n")
-    st.write("Primeras 3 líneas de private_key:")
-    for line in lines[:3]:
-        st.code(line)
-    st.write("Últimas 3 líneas de private_key:")
-    for line in lines[-3:]:
-        st.code(line)
+# 3) Detalles de private_key sin modificar
+pk = sa_info.get("private_key", "")
+st.subheader("3) Detalles ORIGINAL private_key")
+st.write("Tipo:", type(pk), "Longitud:", len(pk))
+lines = pk.splitlines()
+st.write("Líneas totales:", len(lines))
+st.write("Encabezado:", lines[0])
+st.write("Footer:", lines[-1])
 
-# Intentar crear credencial
-st.subheader("Inicializar credentials.Certificate()")
+# 4) Limpieza: quitar indentación y asegurar saltos de línea
+clean_lines = [line.strip() for line in lines if line.strip() != ""]
+clean_pk = "\n".join(clean_lines) + "\n"
+sa_info["private_key"] = clean_pk
+
+st.subheader("4) private_key tras limpieza")
+cl = clean_pk.splitlines()
+st.write("Encabezado:", cl[0])
+st.write("Footer:", cl[-1])
+st.write("Líneas totales tras limpieza:", len(cl))
+
+# 5) Intentar Certificate() ANTES y DESPUÉS de la limpieza
+st.subheader("5) Probar credentials.Certificate")
+
+# 5a) Sin limpieza (reconstruir de antes)
+try:
+    credentials.Certificate({**sa_info, "private_key": "\n".join(lines) + "\n"})
+    st.warning("⚠️ Sin limpieza PASÓ (sorprendente)")
+except Exception as e:
+    st.info("🔍 Sin limpieza falló como antes:")
+    st.error(str(e))
+
+# 5b) Con limpieza
 try:
     cred = credentials.Certificate(sa_info)
-    st.success("✅ credentials.Certificate() funcionó correctamente")
+    st.success("✅ Con limpieza funcionó correctamente")
+    # Inicializar solo para confirmar
+    if not _apps:
+        initialize_app(cred, {"storageBucket": st.secrets["firebase_storage_bucket"]})
+    st.success("🔥 Firebase SDK inicializado")
 except Exception as e:
-    st.error("❌ credentials.Certificate falló:")
+    st.error("❌ Con limpieza SIGUE fallando:")
     st.error(str(e))
     st.text(traceback.format_exc())
     st.stop()
 
-st.success("✅ ¡Todo parece correcto con las credenciales!")
+# 6) Conexión Firestore y Storage
+db = firestore.client()
+bucket = storage.bucket()
+st.success("🚀 ¡Todo listo! Firestore y Storage conectados.")
