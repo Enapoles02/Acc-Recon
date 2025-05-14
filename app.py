@@ -1,31 +1,27 @@
-#!/usr/bin/env python3
-# debug_simple.py — prueba mínima de conexión a Firestore
-
-import sys
+# app.py
+import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-def main():
-    try:
-        # 1) Asegúrate de tener el JSON en la misma carpeta con este nombre:
-        SERVICE_ACCOUNT = 'serviceAccount.json'
-        
-        # 2) Inicializa la app
-        cred = credentials.Certificate(SERVICE_ACCOUNT)
-        firebase_admin.initialize_app(cred)
-        print("✅ Firebase Admin inicializado correctamente.")
-        
-        # 3) Instancia cliente de Firestore
-        db = firestore.client()
-        
-        # 4) “Ping” sencillo: intenta leer un doc que no existe
-        doc = db.collection('ping_test').document('ping').get()
-        print(f"✅ Firestore responde (doc.exists = {doc.exists}). Conexión OK.")
-        
-    except Exception as e:
-        print("❌ Error conectando a Firestore:")
-        print(e)
-        sys.exit(1)
+st.set_page_config(page_title="Test Conexión Firebase", layout="centered")
+st.title("🔌 Test de Conexión a Firebase")
 
-if __name__ == '__main__':
-    main()
+# 1) Cargar credenciales desde secrets.toml
+creds = st.secrets["firebase_credentials"]
+# En algunos entornos st.secrets devuelve un AttrDict:
+creds_dict = creds.to_dict() if hasattr(creds, "to_dict") else creds
+
+# 2) Intentar inicializar la app de Firebase
+try:
+    # Si ya hay una app inicializada, la reutiliza
+    if not firebase_admin._apps:
+        cred = credentials.Certificate(creds_dict)
+        firebase_admin.initialize_app(cred)
+    # Crear cliente de Firestore solo para confirmar que funciona
+    db = firestore.client()
+    # Intentar una operación simple: listar colecciones (sin leer datos sensibles)
+    _ = db.collections()
+    st.success("✅ Conectado a Firebase correctamente")
+except Exception as e:
+    st.error("❌ No se pudo conectar a Firebase:")
+    st.write(f"```\n{e}\n```")
