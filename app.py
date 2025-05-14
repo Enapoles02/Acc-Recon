@@ -1,33 +1,26 @@
-import streamlit as st
-import json
-
 # ————————————————
-# DEPURADOR: mostrar contenido de st.secrets
+# Paso 1: Importación inicial de la base de datos
 # ————————————————
-st.sidebar.title("🔧 Debug Secrets")
+accounts_ref = db.collection("accounts")
 
-# Listar todas las keys disponibles
-st.sidebar.subheader("Keys disponibles en st.secrets:")
-st.sidebar.write(list(st.secrets.keys()))
+# Si la colección está vacía, mostramos el formulario de carga
+if not accounts_ref.limit(1).get():
+    st.title("🚀 Importar base de datos inicial")
+    st.write("Carga tu archivo Excel con la lista de cuentas y responsables.")
 
-# Si existe 'service_account', mostrar los primeros 200 caracteres y parsear JSON
-if "service_account" in st.secrets:
-    raw = st.secrets["service_account"]
-    st.sidebar.subheader("service_account (raw, primeros 200 chars):")
-    st.sidebar.code(raw[:200] + "…")
-    try:
-        parsed = json.loads(raw)
-        st.sidebar.success("✅ service_account es JSON válido")
-        # Mostrar todos menos la clave privada
-        preview = {k: v for k, v in parsed.items() if k != "private_key"}
-        st.sidebar.write("Contenido parseado:", preview)
-    except Exception as e:
-        st.sidebar.error("❌ Error al parsear JSON:")
-        st.sidebar.error(str(e))
-
-# Mostrar el bucket configurado
-if "firebase_storage_bucket" in st.secrets:
-    st.sidebar.subheader("firebase_storage_bucket:")
-    st.sidebar.write(st.secrets["firebase_storage_bucket"])
-else:
-    st.sidebar.error("❌ No está configurado 'firebase_storage_bucket' en secrets")
+    uploaded = st.file_uploader("Selecciona el .xlsx", type="xlsx")
+    if uploaded and st.button("Importar base"):
+        try:
+            df = pd.read_excel(uploaded)
+            st.write("Columnas encontradas:", df.columns.tolist())
+            for _, row in df.iterrows():
+                data = row.to_dict()
+                account_id = str(data.get("Account", "")).strip()
+                if account_id:
+                    # Guarda cada fila bajo un documento con ID = Account
+                    accounts_ref.document(account_id).set(data)
+            st.success("📥 Base importada correctamente. Recarga la página para continuar.")
+        except Exception as e:
+            st.error(f"Error importando base: {e}")
+    # Detenemos la ejecución para que solo se vea esta pantalla
+    st.stop()
