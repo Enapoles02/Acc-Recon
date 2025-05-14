@@ -31,11 +31,8 @@ def upload_data(file):
     db = init_firebase()
     sheets = pd.read_excel(file, sheet_name=None)
     for sheet_name, df_sheet in sheets.items():
-        # Eliminar columnas no deseadas si existen
-        # Campo reservado Firestore
-        if "PowerAppsId" in df_sheet.columns:
-            df_sheet = df_sheet.drop(columns=["PowerAppsId"])
-        # Columnas de índice de pandas
+        # Eliminar campos reservados y columnas 'Unnamed'
+        df_sheet = df_sheet.loc[:, ~df_sheet.columns.str.lower().str.contains('powerappsid')]
         df_sheet = df_sheet.loc[:, ~df_sheet.columns.str.startswith('Unnamed')]
 
         # Definir nombre de colección: genérico para Americas
@@ -85,13 +82,13 @@ def show_tab(df: pd.DataFrame, sheet_label: str):
 
     # Filtros dependientes
     df_f = df.copy()
-    sel_preparer = st.selectbox("Preparer", ["Todos"] + sorted(df_f.get(preparer_col, []).dropna().unique()))
+    sel_preparer = st.selectbox("Preparer", ["Todos"] + sorted(df_f[preparer_col].dropna().unique()))
     if sel_preparer != "Todos":
         df_f = df_f[df_f[preparer_col] == sel_preparer]
-    sel_country = st.selectbox("Country", ["Todos"] + sorted(df_f.get(country_col, []).dropna().unique()))
+    sel_country = st.selectbox("Country", ["Todos"] + sorted(df_f[country_col].dropna().unique()))
     if sel_country != "Todos":
         df_f = df_f[df_f[country_col] == sel_country]
-    sel_filler = st.selectbox("Filler", ["Todos"] + sorted(df_f.get(filler_col, []).dropna().unique()))
+    sel_filler = st.selectbox("Filler", ["Todos"] + sorted(df_f[filler_col].dropna().unique()))
     if sel_filler != "Todos":
         df_f = df_f[df_f[filler_col] == sel_filler]
 
@@ -99,7 +96,7 @@ def show_tab(df: pd.DataFrame, sheet_label: str):
     col1, col2 = st.columns([1, 3])
     with col1:
         st.subheader("Cuentas GL")
-        gls = sorted(df_f.get(gl_col, []).dropna().unique())
+        gls = sorted(df_f[gl_col].dropna().unique())
         selected_gl = st.selectbox("Selecciona GL Account Name", gls)
 
     with col2:
