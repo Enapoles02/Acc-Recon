@@ -6,16 +6,14 @@ import firebase_admin
 from firebase_admin import credentials, firestore, storage
 
 # ————————————————
-# Inicialización de Firebase
+# Inicialización de Firebase (sin modificar)
 # ————————————————
 if not firebase_admin._apps:
-    sa_json = st.secrets["service_account"]
-    sa_info = json.loads(sa_json)
+    sa_info = json.loads(st.secrets["service_account"])
     cred = credentials.Certificate(sa_info)
     firebase_admin.initialize_app(cred, {
         "storageBucket": st.secrets["firebase_storage_bucket"]
     })
-
 db = firestore.client()
 bucket = storage.bucket()
 
@@ -23,11 +21,9 @@ bucket = storage.bucket()
 # Paso 1: Importación inicial de la base de datos
 # ————————————————
 accounts_ref = db.collection("accounts")
-
 if not accounts_ref.limit(1).get():
     st.title("🚀 Importar base de datos inicial")
     st.write("Carga tu archivo Excel con la lista de cuentas y responsables.")
-
     uploaded = st.file_uploader("Selecciona el .xlsx", type="xlsx")
     if uploaded and st.button("Importar base"):
         try:
@@ -49,12 +45,10 @@ if not accounts_ref.limit(1).get():
 st.sidebar.title("Control de cuentas")
 role = st.sidebar.selectbox("Perfil", ["Filler", "Reviewer"])
 
-# Cargar todas las cuentas
 accounts = {doc.id: doc.to_dict() for doc in accounts_ref.stream()}
 selected = st.sidebar.selectbox("Selecciona cuenta", sorted(accounts.keys()))
 account_data = accounts[selected]
 
-# Mostrar detalles de la cuenta
 col1, col2, col3 = st.columns([1, 3, 2])
 with col2:
     st.header(f"Cuenta: {selected}")
@@ -62,7 +56,6 @@ with col2:
         st.subheader(field)
         st.write(account_data.get(field, "-"))
 
-# Chat / revisión
 with col3:
     st.subheader("Revisión & Chat")
     for doc in db.collection("comments") \
@@ -75,31 +68,27 @@ with col3:
         if c.get("status"):
             st.caption(f"Status: {c['status']}")
 
-    new_comment = st.text_area("Agregar comentario:")
+    new = st.text_area("Agregar comentario:")
     status = st.selectbox("Status", ["", "On hold", "Approved"])
     if st.button("Enviar comentario"):
-        if new_comment.strip():
+        if new.strip():
             db.collection("comments").add({
                 "account_id": selected,
                 "user": role,
-                "text": new_comment.strip(),
+                "text": new.strip(),
                 "status": status,
                 "timestamp": datetime.utcnow()
             })
             st.success("Comentario enviado")
             st.experimental_rerun()
 
-# Zona de adjuntos
 st.markdown("---")
-st.header("Adjuntar archivo de conciliación")
-uploaded_file = st.file_uploader("Selecciona archivo (.xlsx, .pdf, .docx)", type=["xlsx", "pdf", "docx"])
-if uploaded_file and st.button("Subir documento"):
+st.header("Adjuntar conciliación final")
+uf = st.file_uploader("Archivo (.xlsx, .pdf, .docx)", type=["xlsx", "pdf", "docx"])
+if uf and st.button("Subir documento"):
     try:
-        blob = bucket.blob(f"{selected}/{uploaded_file.name}")
-        blob.upload_from_string(
-            uploaded_file.getvalue(),
-            content_type=uploaded_file.type
-        )
+        blob = bucket.blob(f"{selected}/{uf.name}")
+        blob.upload_from_string(uf.getvalue(), content_type=uf.type)
         st.success("Archivo subido exitosamente.")
     except Exception as e:
         st.error(f"Error subiendo archivo: {e}")
