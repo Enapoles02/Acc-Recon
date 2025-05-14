@@ -1,48 +1,72 @@
 import streamlit as st
 import pandas as pd
+import json
 from datetime import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 
 # ————————————————
-# Inicializar Firebase (ajuste para lstrip en private_key)
+# DEBUG: Mostrar todo st.secrets
+# ————————————————
+st.sidebar.title("🔧 Debug Secrets")
+st.sidebar.subheader("Keys disponibles:")
+st.sidebar.write(list(st.secrets.keys()))
+
+# Si existe service_account, mostrar el tipo y un preview
+if "service_account" in st.secrets:
+    sa = st.secrets["service_account"]
+    st.sidebar.subheader("service_account (raw):")
+    st.sidebar.code(sa[:200] + "…")
+    try:
+        sa_json = json.loads(sa)
+        st.sidebar.success("service_account parseable JSON")
+        st.sidebar.write({k: v for k, v in sa_json.items() if k != "private_key"})
+    except Exception as e:
+        st.sidebar.error(f"JSON parse error: {e}")
+
+# Mostrar firebase_storage_bucket si existe
+if "firebase_storage_bucket" in st.secrets:
+    st.sidebar.subheader("firebase_storage_bucket:")
+    st.sidebar.write(st.secrets["firebase_storage_bucket"])
+else:
+    st.sidebar.error("No hay firebase_storage_bucket en secrets")
+
+# ————————————————
+# Inicialización de Firebase
 # ————————————————
 if not firebase_admin._apps:
-    cfg = st.secrets["firebase"]
-    # Convertir a dict y quitar salto de línea inicial de private_key
-    cfg = cfg.to_dict() if hasattr(cfg, "to_dict") else dict(cfg)
-    cfg["private_key"] = cfg["private_key"].lstrip()
-    cred = credentials.Certificate(cfg)
-    firebase_admin.initialize_app(cred)
+    try:
+        # Cargar credenciales desde service_account JSON
+        sa_json = json.loads(st.secrets["service_account"])
+        cred = credentials.Certificate(sa_json)
+        firebase_admin.initialize_app(cred, {
+            "storageBucket": st.secrets["firebase_storage_bucket"]
+        })
+        st.sidebar.success("Firebase inicializado OK")
+    except Exception as e:
+        st.sidebar.error("Error inicializando Firebase:")
+        st.sidebar.error(e)
+        st.stop()
 
 db = firestore.client()
-
-# Recuperar bucket
-bucket_name = st.secrets.get("firebase_storage_bucket")
-if not bucket_name:
-    st.error("❌ No está configurado 'firebase_storage_bucket' en secrets.")
-    st.stop()
-bucket = storage.bucket(bucket_name)
+bucket = storage.bucket()
 
 # ————————————————
-# Paso 1: Importación inicial de la base de datos
+# Paso 1: Importación inicial
 # ————————————————
 accounts_ref = db.collection("accounts")
 if not accounts_ref.limit(1).get():
     st.title("🚀 Importar base de datos inicial")
-    st.write("Carga tu archivo Excel con la lista de cuentas y responsables.")
-    uploaded = st.file_uploader("Selecciona el .xlsx", type="xlsx")
+    uploaded = st.file_uploader("Selecciona tu Excel (.xlsx)", type="xlsx")
     if uploaded and st.button("Importar base"):
-        try:
-            df = pd.read_excel(uploaded)
-            for _, row in df.iterrows():
-                data = row.to_dict()
-                account_id = str(data.get("Account", "")).strip()
-                if account_id:
-                    accounts_ref.document(account_id).set(data)
-            st.success("📥 Base importada correctamente. Recarga la página para continuar.")
-        except Exception as e:
-            st.error(f"Error importando base: {e}")
+        df = pd.read_excel(uploaded)
+        st.write("Columnas encontradas:", df.columns.tolist())
+        for _, row in df.iterrows():
+            data = row.to_dict()
+            acct = str(data.get("Account", "")).strip()
+            if acct:
+                accounts_ref.document(acct).set(data)
+        st.success("Importación completada. Recarga para continuar.")
     st.stop()
 
 # ————————————————
@@ -51,63 +75,54 @@ if not accounts_ref.limit(1).get():
 st.sidebar.title("Control de cuentas")
 role = st.sidebar.selectbox("Perfil", ["Filler", "Reviewer"])
 
-# Cargar cuentas desde Firestore
-docs = accounts_ref.stream()
-accounts = {doc.id: doc.to_dict() for doc in docs}
-selected = st.sidebar.selectbox("Selecciona cuenta", sorted(accounts.keys()))
-account_data = accounts[selected]
+# Cargar cuentas
+accounts = {doc.id: doc.to_dict() for doc in accounts_ref.stream()}
+st.sidebar.subheader("Cantidad de cuentas:")
+st.sidebar.write(len(accounts))
 
-# ————————————————
-# Mostrar detalles de la cuenta
-# ————————————————
+selected = st.sidebar.selectbox("Selecciona cuenta", sorted(accounts.keys()))
+data = accounts[selected]
+
+# Layout
 col1, col2, col3 = st.columns([1, 3, 2])
 with col2:
     st.header(f"Cuenta: {selected}")
-    for field in ["Assigned Reviewer", "Cluster", "Balance in EUR at 31/3", "Comments / Risk / Exposure"]:
-        st.subheader(field)
-        st.write(account_data.get(field, "-"))
+    for f in ["Assigned Reviewer","Cluster","Balance in EUR at 31/3","Comments / Risk / Exposure"]:
+        st.subheader(f)
+        st.write(data.get(f, "-"))
 
-# ————————————————
-# Chat de revisión
-# ————————————————
 with col3:
-    st.subheader("Revisión & Chat")
-    for doc in (
-        db.collection("comments")
-          .where("account_id", "==", selected)
-          .order_by("timestamp")
-          .stream()
-    ):
-        c = doc.to_dict()
+    st.header("Chat & Revisión")
+    comments = list(db.collection("comments")
+                   .where("account_id","==",selected)
+                   .order_by("timestamp")
+                   .stream())
+    st.write(f"Comentarios encontrados: {len(comments)}")
+    for cdoc in comments:
+        c = cdoc.to_dict()
         ts = c["timestamp"].strftime("%Y-%m-%d %H:%M")
         st.markdown(f"**{c['user']}** *({ts})* — {c['text']}")
         if c.get("status"):
             st.caption(f"Status: {c['status']}")
 
-    new_comment = st.text_area("Agregar comentario:")
-    status = st.selectbox("Status", ["", "On hold", "Approved"])
-    if st.button("Enviar comentario"):
-        if new_comment.strip():
+    new = st.text_area("Comentario")
+    st_status = st.selectbox("Status", ["","On hold","Approved"])
+    if st.button("Enviar"):
+        if new.strip():
             db.collection("comments").add({
                 "account_id": selected,
                 "user": role,
-                "text": new_comment.strip(),
-                "status": status,
+                "text": new.strip(),
+                "status": st_status,
                 "timestamp": datetime.utcnow()
             })
-            st.success("Comentario enviado")
             st.experimental_rerun()
 
-# ————————————————
-# Adjuntar conciliación final
-# ————————————————
+# Adjuntos
 st.markdown("---")
-st.header("Adjuntar archivo de conciliación")
-uploaded_file = st.file_uploader("Selecciona archivo (.xlsx, .pdf, .docx)", type=["xlsx","pdf","docx"])
-if uploaded_file and st.button("Subir documento"):
-    blob = bucket.blob(f"{selected}/{uploaded_file.name}")
-    blob.upload_from_string(
-        uploaded_file.getvalue(),
-        content_type=uploaded_file.type
-    )
-    st.success("Archivo subido exitosamente.")
+st.header("Adjuntar conciliación")
+uf = st.file_uploader("Archivo (.xlsx,.pdf,.docx)", type=["xlsx","pdf","docx"])
+if uf and st.button("Subir"):
+    blob = bucket.blob(f"{selected}/{uf.name}")
+    blob.upload_from_string(uf.getvalue(), content_type=uf.type)
+    st.success("Archivo subido.")
