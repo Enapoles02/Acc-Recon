@@ -5,17 +5,28 @@ import firebase_admin
 from firebase_admin import credentials, firestore, storage
 
 # ————————————————
-# Inicialización de Firebase
+# Inicializar Firebase
 # ————————————————
 if not firebase_admin._apps:
-    cred = credentials.Certificate(st.secrets["firebase"])
-    firebase_admin.initialize_app(cred, {
-        "storageBucket": st.secrets["firebase_storage_bucket"]
-    })
+    # Leer configuración de credenciales
+    cfg = st.secrets["firebase"]
+    # Inicializar la app con la clave de servicio
+    cred = credentials.Certificate(cfg)
+    firebase_admin.initialize_app(cred)
 
 db = firestore.client()
-# Usar explícitamente el nombre de bucket desde secrets
-bucket = storage.bucket(st.secrets["firebase_storage_bucket"])
+
+# Determinar nombre de bucket con fallback
+bucket_name = (
+    st.secrets.get("firebase_storage_bucket")
+    or st.secrets["firebase"].get("firebase_storage_bucket")
+    or st.secrets["firebase"].get("storageBucket")
+)
+if not bucket_name:
+    st.error("❌ No está configurado 'firebase_storage_bucket' en secrets.")
+    st.stop()
+
+bucket = storage.bucket(bucket_name)
 
 # ————————————————
 # Paso 1: Importación inicial de la base de datos
@@ -47,11 +58,11 @@ role = st.sidebar.selectbox("Perfil", ["Filler", "Reviewer"])
 # Cargar cuentas desde Firestore
 docs = accounts_ref.stream()
 accounts = {doc.id: doc.to_dict() for doc in docs}
-selected = st.sidebar.selectbox("Selecciona cuenta", list(accounts.keys()))
+selected = st.sidebar.selectbox("Selecciona cuenta", sorted(accounts.keys()))
 account_data = accounts[selected]
 
 # ————————————————
-# Detalles de la cuenta
+# Mostrar detalles de la cuenta
 # ————————————————
 col1, col2, col3 = st.columns([1, 3, 2])
 with col2:
@@ -65,10 +76,12 @@ with col2:
 # ————————————————
 with col3:
     st.subheader("Revisión & Chat")
-    for doc in db.collection("comments") \
-                 .where("account_id", "==", selected) \
-                 .order_by("timestamp") \
-                 .stream():
+    for doc in (
+        db.collection("comments")
+          .where("account_id", "==", selected)
+          .order_by("timestamp")
+          .stream()
+    ):
         c = doc.to_dict()
         ts = c["timestamp"].strftime("%Y-%m-%d %H:%M")
         st.markdown(f"**{c['user']}** *({ts})* — {c['text']}")
@@ -94,11 +107,14 @@ with col3:
 # ————————————————
 st.markdown("---")
 st.header("Adjuntar archivo de conciliación")
-uploaded_file = st.file_uploader("Selecciona archivo (.xlsx, .pdf, .docx)", type=["xlsx","pdf","docx"])
+uploaded_file = st.file_uploader("Selecciona archivo (.xlsx, .pdf, .docx)", type=["xlsx", "pdf", "docx"])
 if uploaded_file and st.button("Subir documento"):
-    blob = bucket.blob(f"{selected}/{uploaded_file.name}")
-    blob.upload_from_string(
-        uploaded_file.getvalue(),
-        content_type=uploaded_file.type
-    )
-    st.success("Archivo subido exitosamente.")
+    try:
+        blob = bucket.blob(f"{selected}/{uploaded_file.name}")
+        blob.upload_from_string(
+            uploaded_file.getvalue(),
+            content_type=uploaded_file.type
+        )
+        st.success("Archivo subido exitosamente.")
+    except Exception as e:
+        st.error(f"Error subiendo archivo: {e}")
