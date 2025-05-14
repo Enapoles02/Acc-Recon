@@ -5,107 +5,54 @@ import firebase_admin
 from firebase_admin import credentials, firestore, storage
 
 # ————————————————
-# DEBUG: Mostrar qué secretos hay disponibles
+# Inicialización de Firebase
 # ————————————————
-st.sidebar.subheader("🔧 Debug Secrets")
-secret_keys = list(st.secrets.keys())
-st.sidebar.write("Secciones cargadas en st.secrets:", secret_keys)
+if not firebase_admin._apps:
+    cred = credentials.Certificate(st.secrets["firebase"])
+    firebase_admin.initialize_app(cred, {
+        "storageBucket": st.secrets["firebase_storage_bucket"]
+    })
+db = firestore.client()
+bucket = storage.bucket()
 
 # ————————————————
-# Inicialización de Firebase con debug y manejo de errores
+# Paso 1: Carga inicial de la base de datos
 # ————————————————
-def init_firebase():
-    # Determinar sección de credenciales
-    section = "firebase_credentials" if "firebase_credentials" in st.secrets else "firebase"
-    st.sidebar.write(f"Usando sección de secrets: `{section}`")
-    config = st.secrets[section]
-    st.sidebar.write("Tipo de config:", type(config))
-
-    # Convertir a dict si es un AttrDict
-    cfg = config.to_dict() if hasattr(config, "to_dict") else config
-    # Mostrar campos esenciales (sin imprimir la clave completa)
-    for key in ("project_id", "client_email", "private_key_id"):
-        st.sidebar.write(f"{key}:", cfg.get(key))
-
-    # Leer nombre de bucket
-    bucket_name = st.secrets.get("firebase_storage_bucket")
-    if bucket_name:
-        st.sidebar.write("Storage bucket:", bucket_name)
-    else:
-        st.sidebar.error("❌ No encontré 'firebase_storage_bucket' en tus secrets")
-
-    # Inicializar app de Firebase
-    try:
-        cred = credentials.Certificate(cfg)
-        init_args = {}
-        if bucket_name:
-            init_args["storageBucket"] = bucket_name
-        if not firebase_admin._apps:
-            firebase_admin.initialize_app(cred, init_args)
-        st.sidebar.success("✅ Firebase SDK inicializado")
-    except Exception as e:
-        st.sidebar.error("❌ Error al inicializar Firebase SDK:")
-        st.sidebar.error(e)
-        st.stop()
-
-    # Conectar Firestore
-    try:
-        db = firestore.client()
-        st.sidebar.success("✅ Conexión a Firestore OK")
-    except Exception as e:
-        st.sidebar.error("❌ Error al conectar Firestore:")
-        st.sidebar.error(e)
-        st.stop()
-
-    # Conectar Storage (opcional, solo si bucket existe)
-    bucket = None
-    if bucket_name:
+accounts_ref = db.collection("accounts")
+# Comprobar si hay al menos un documento
+if not accounts_ref.limit(1).get():
+    st.title("🚀 Importar base de datos inicial")
+    st.write("Carga aquí tu archivo Excel con la lista de cuentas y responsables.")
+    uploaded = st.file_uploader("Selecciona el .xlsx", type="xlsx")
+    if uploaded and st.button("Importar base"):
         try:
-            bucket = storage.bucket()
-            st.sidebar.success("✅ Conexión a Storage OK")
+            df = pd.read_excel(uploaded)
+            for _, row in df.iterrows():
+                data = row.to_dict()
+                account_id = str(data.get("Account", "")).strip()
+                if account_id:
+                    accounts_ref.document(account_id).set(data)
+            st.success("📥 Base importada correctamente. Recarga la página para continuar.")
         except Exception as e:
-            st.sidebar.error("❌ Error al obtener bucket de Storage:")
-            st.sidebar.error(e)
-
-    return db, bucket
-
-db, bucket = init_firebase()
+            st.error(f"Error importando base: {e}")
+    st.stop()
 
 # ————————————————
-# Sidebar: perfil y carga de archivo
+# Paso 2: App principal (modificar datos)
 # ————————————————
 st.sidebar.title("Control de cuentas")
 role = st.sidebar.selectbox("Perfil", ["Filler", "Reviewer"])
-excel_file = st.sidebar.file_uploader("Carga el archivo de cuentas (.xlsx)", type=["xlsx"])
 
-if not excel_file:
-    st.sidebar.warning("Carga el archivo para continuar.")
-    st.stop()
-
-# ————————————————
-# Lectura de Excel y selección de cuenta
-# ————————————————
-try:
-    df = pd.read_excel(excel_file)
-    st.sidebar.success("✅ Excel leído correctamente")
-except Exception as e:
-    st.sidebar.error("❌ Error al leer Excel:")
-    st.sidebar.error(e)
-    st.stop()
-
-if "Account" not in df.columns:
-    st.error("La columna 'Account' no existe en tu Excel.")
-    st.stop()
-
-accounts = df["Account"].dropna().unique().tolist()
-selected = st.sidebar.selectbox("Seleccione cuenta", accounts)
-account_data = df[df["Account"] == selected].iloc[0]
+# Listar cuentas desde Firestore
+docs = accounts_ref.stream()
+accounts = {doc.id: doc.to_dict() for doc in docs}
+selected = st.sidebar.selectbox("Selecciona cuenta", list(accounts.keys()))
+account_data = accounts[selected]
 
 # ————————————————
-# Layout principal
+# Mostrar detalles de la cuenta
 # ————————————————
 col1, col2, col3 = st.columns([1, 3, 2])
-
 with col2:
     st.header(f"Cuenta: {selected}")
     for field in ["Assigned Reviewer", "Cluster", "Balance in EUR at 31/3", "Comments / Risk / Exposure"]:
@@ -113,27 +60,27 @@ with col2:
         st.write(account_data.get(field, "-"))
 
 # ————————————————
-# Zona de chat / revisión
+# Chat de revisión
 # ————————————————
 with col3:
     st.subheader("Revisión & Chat")
     try:
-        for doc in db.collection("comments")\
-                     .where("account_id", "==", selected)\
-                     .order_by("timestamp")\
-                     .stream():
+        comments = db.collection("comments") \
+                     .where("account_id", "==", selected) \
+                     .order_by("timestamp") \
+                     .stream()
+        for doc in comments:
             c = doc.to_dict()
             ts = c["timestamp"].strftime("%Y-%m-%d %H:%M")
             st.markdown(f"**{c['user']}** *({ts})* — {c['text']}")
             if c.get("status"):
                 st.caption(f"Status: {c['status']}")
     except Exception as e:
-        st.error("❌ Error al cargar comentarios:")
-        st.error(e)
+        st.error(f"Error cargando comentarios: {e}")
 
-    new_comment = st.text_area("Nuevo comentario:")
+    new_comment = st.text_area("Agregar comentario:")
     status = st.selectbox("Status", ["", "On hold", "Approved"])
-    if st.button("Enviar"):
+    if st.button("Enviar comentario"):
         if new_comment.strip():
             try:
                 db.collection("comments").add({
@@ -146,23 +93,21 @@ with col3:
                 st.success("Comentario enviado")
                 st.experimental_rerun()
             except Exception as e:
-                st.error("❌ Error al guardar comentario:")
-                st.error(e)
+                st.error(f"Error guardando comentario: {e}")
 
 # ————————————————
-# Zona de adjuntos
+# Adjuntar conciliación final
 # ————————————————
 st.markdown("---")
-st.header("Adjuntar conciliación")
-uploaded_file = st.file_uploader("Selecciona archivo", type=["xlsx", "pdf", "docx"])
-if uploaded_file and st.button("Subir"):
-    if bucket:
-        try:
-            blob = bucket.blob(f"{selected}/{uploaded_file.name}")
-            blob.upload_from_string(uploaded_file.getvalue(), content_type=uploaded_file.type)
-            st.success("Archivo subido")
-        except Exception as e:
-            st.error("❌ Error al subir archivo:")
-            st.error(e)
-    else:
-        st.error("No hay bucket configurado; revisa tu secret 'firebase_storage_bucket'.")
+st.header("Adjuntar archivo de conciliación")
+uploaded_file = st.file_uploader("Selecciona archivo (.xlsx, .pdf, .docx)", type=["xlsx","pdf","docx"])
+if uploaded_file and st.button("Subir documento"):
+    try:
+        blob = bucket.blob(f"{selected}/{uploaded_file.name}")
+        blob.upload_from_string(
+            uploaded_file.getvalue(),
+            content_type=uploaded_file.type
+        )
+        st.success("Archivo subido exitosamente.")
+    except Exception as e:
+        st.error(f"Error subiendo archivo: {e}")
