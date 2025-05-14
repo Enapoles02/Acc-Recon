@@ -13,16 +13,43 @@ def init_firebase():
         firebase_admin.initialize_app(cred)
     return firestore.client()
 
-# Carga los datos desde la colección única
+# Carga los datos desde la colección única, seleccionando solo campos necesarios para mejorar performance
 @st.cache_data(ttl=300)
 def load_data():
     db = init_firebase()
-    docs = db.collection("reconciliation_records").stream()
+    # Detectar columnas clave antes de fetch (se asume esquema uniforme)
+    # Necesitamos GL y campos de filtro y UI
+    # Carga primero un doc para detectar columnas
+    sample = next(db.collection("reconciliation_records").limit(1).stream(), None)
+    if sample:
+        cols = list(sample.to_dict().keys())
+    else:
+        cols = []
+    # Determinar campos a seleccionar
+    keys = []
+    for key in cols:
+        # incluir solo campos relevantes
+        if any(k in key.lower() for k in ["gl account name", "gl name", "account name", "assigned reviewer", "reviewed by", "owner", "cluster", "completed", "completion date", "preparer", "country", "fc input", "filler"]):
+            keys.append(key)
+    # Siempre incluimos ID
+    keys = list(set(keys))
     records = []
-    for doc in docs:
-        data = doc.to_dict()
-        data['_id'] = doc.id
-        records.append(data)
+    # Spinner para feedback
+    with st.spinner('Cargando datos de Firestore...'):  
+        query = db.collection("reconciliation_records")
+        try:
+            # Seleccionar solo campos necesarios si la API lo soporta
+            if hasattr(query, 'select') and keys:
+                query = query.select(keys)
+            docs = query.stream()
+        except Exception:
+            docs = db.collection("reconciliation_records").stream()
+        for doc in docs:
+            data = doc.to_dict()
+            # conservar solo keys seleccionadas + _id
+            filtered = {k: data.get(k) for k in keys}
+            filtered['_id'] = doc.id
+            records.append(filtered)
     return pd.DataFrame(records)
 
 # Obtiene comentarios ordenados por timestamp
