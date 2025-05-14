@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -13,21 +14,59 @@ def init_firebase():
     return firestore.client()
 
 # Carga datos de la colección única en DataFrame
+@st.cache_data(ttl=300)
 def load_data():
     db = init_firebase()
     col = db.collection("reconciliation_records")
     docs = col.stream()
-    df = pd.DataFrame([doc.to_dict() for doc in docs])
+    records = []
+    for doc in docs:
+        data = doc.to_dict()
+        data["_id"] = doc.id
+        records.append(data)
+    df = pd.DataFrame(records)
     if df.empty:
         st.warning("No se encontraron datos en Firestore. Usa el modo Admin para cargar el Excel.")
     return df
 
+# Obtiene comentarios de subcolección
+@st.cache_data(ttl=60)
+def get_comments(doc_id):
+    db = init_firebase()
+    coll = db.collection("reconciliation_records").document(doc_id).collection("comments")
+    docs = coll.order_by("timestamp").stream()
+    comments = []
+    for d in docs:
+        c = d.to_dict()
+        # convertir timestamp a datetime si viene como Firestore timestamp
+        ts = c.get("timestamp")
+        if hasattr(ts, 'to_datetime'):
+            c['timestamp'] = ts.to_datetime()
+        comments.append(c)
+    return comments
+
+# Agrega un comentario en Firestore
+def add_comment(doc_id, user, text):
+    db = init_firebase()
+    coll = db.collection("reconciliation_records").document(doc_id).collection("comments")
+    coll.add({
+        "user": user,
+        "text": text,
+        "timestamp": firestore.SERVER_TIMESTAMP
+    })
+
+# Encuentra columna por palabra clave
+def find_column(df, keywords):
+    for kw in keywords:
+        for col in df.columns:
+            if kw.lower() in col.lower():
+                return col
+    return None
+
 # Subida Admin: lee una sola hoja de Excel y la sube a la colección única
 def upload_data(file):
     db = init_firebase()
-    # Lee primera hoja por defecto
     df_sheet = pd.read_excel(file)
-    # Eliminar campos reservados y columnas Unnamed
     df_sheet = df_sheet.loc[:, ~df_sheet.columns.str.lower().str.contains('powerappsid')]
     df_sheet = df_sheet.loc[:, ~df_sheet.columns.str.startswith('Unnamed')]
     col = db.collection("reconciliation_records")
@@ -38,23 +77,18 @@ def upload_data(file):
     for idx, row in df_sheet.iterrows():
         col.document(str(idx)).set(row.dropna().to_dict())
 
-# Encuentra columna por palabra clave
-def find_column(df, keywords):
-    for kw in keywords:
-        for col in df.columns:
-            if kw.lower() in col.lower():
-                return col
-    return None
-
 # App principal
 def main():
     st.set_page_config(layout="wide")
     st.title("Dashboard de Reconciliación GL")
 
-    # Sidebar: modo Admin
+    # Usuario para comentarios
+    user = st.sidebar.text_input("Usuario:")
+    
+    # Sidebar Admin
     ADMIN_CODE = st.secrets.get("admin_code", "ADMIN")
     admin_input = st.sidebar.text_input("Clave Admin", type="password")
-    is_admin = admin_input == ADMIN_CODE
+    is_admin = (admin_input == ADMIN_CODE)
     if admin_input:
         if is_admin:
             st.sidebar.success("Modo Admin activado")
@@ -63,11 +97,12 @@ def main():
     if is_admin:
         st.sidebar.markdown("---")
         st.sidebar.header("Cargar Excel a Firestore")
-        file = st.sidebar.file_uploader("Excel (.xlsx/.xls)", type=["xlsx","xls"], key="admin_upload")
+        file = st.sidebar.file_uploader("Excel (.xlsx/.xls)", type=["xlsx","xls"])
         if file and st.sidebar.button("Subir a Firestore"):
             try:
                 upload_data(file)
                 st.sidebar.success("Datos cargados correctamente.")
+                st.experimental_rerun()
             except Exception as e:
                 st.sidebar.error(f"Error al cargar: {e}")
 
@@ -78,48 +113,59 @@ def main():
 
     # Detectar columnas
     gl_col = find_column(df, ["gl account name", "gl name", "account name"])
-    preparer_col = find_column(df, ["preparer"])
-    country_col = find_column(df, ["country"])
-    filler_col = find_column(df, ["fc input", "filler"])
     completed_col = find_column(df, ["completed"])
     completion_date_col = find_column(df, ["completion date"])
-    missing = [c for c in [gl_col, preparer_col, country_col, filler_col] if c is None]
+
+    missing = [c for c in [gl_col] if c is None]
     if missing:
         st.error(f"Faltan columnas necesarias: {missing}")
         return
 
-    # Filtros dependientes en sidebar
-    st.sidebar.markdown("---")
-    st.sidebar.header("Filtros")
-    df_f = df.copy()
-    preparers = ["Todos"] + sorted(df_f[preparer_col].dropna().unique())
-    sel_preparer = st.sidebar.selectbox("Preparer", preparers)
-    if sel_preparer != "Todos":
-        df_f = df_f[df_f[preparer_col] == sel_preparer]
-    countries = ["Todos"] + sorted(df_f[country_col].dropna().unique())
-    sel_country = st.sidebar.selectbox("Country", countries)
-    if sel_country != "Todos":
-        df_f = df_f[df_f[country_col] == sel_country]
-    fillers = ["Todos"] + sorted(df_f[filler_col].dropna().unique())
-    sel_filler = st.sidebar.selectbox("Filler", fillers)
-    if sel_filler != "Todos":
-        df_f = df_f[df_f[filler_col] == sel_filler]
+    # Menú de cuentas GL como expander
+    st.header("Cuentas GL")
+    for idx, row in df.iterrows():
+        gl_name = row.get(gl_col)
+        doc_id = row.get("_id")
+        if not gl_name or not doc_id:
+            continue
+        with st.expander(gl_name):
+            # Completed checkbox y fecha
+            current_completed = row.get(completed_col)
+            val_completed = True if str(current_completed).lower() in ["yes", "true", "1"] else False
+            new_completed = st.checkbox("Completed", value=val_completed, key=f"completed_{doc_id}")
 
-    # Layout: GL selector y detalle
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        st.subheader("Cuentas GL")
-        gls = sorted(df_f[gl_col].dropna().unique())
-        selected_gl = st.selectbox("Selecciona GL Account Name", gls)
-    with col2:
-        st.subheader(f"Detalle de '{selected_gl}'")
-        detail = df_f[df_f[gl_col] == selected_gl]
-        cols_show = []
-        if completed_col:
-            cols_show.append(completed_col)
-        if completion_date_col:
-            cols_show.append(completion_date_col)
-        st.dataframe(detail[cols_show] if cols_show else detail)
+            # Date input
+            raw_date = row.get(completion_date_col)
+            try:
+                default_date = pd.to_datetime(raw_date).date()
+            except Exception:
+                default_date = datetime.date.today()
+            new_date = st.date_input("Completion Date", value=default_date, key=f"date_{doc_id}")
+
+            # Botón guardar
+            if st.button("Guardar cambios", key=f"save_{doc_id}"):
+                db = init_firebase()
+                db.collection("reconciliation_records").document(doc_id).update({
+                    completed_col: "Yes" if new_completed else "No",
+                    completion_date_col: new_date.strftime("%Y-%m-%d")
+                })
+                st.success("Registro actualizado.")
+
+            # Comentarios estilo chat
+            st.subheader("Comentarios")
+            comments = get_comments(doc_id)
+            for cm in comments:
+                ts = cm.get("timestamp")
+                ts_str = ts.strftime("%Y-%m-%d %H:%M") if isinstance(ts, datetime.datetime) else str(ts)
+                st.markdown(f"**{cm.get('user', 'Anon')}** ({ts_str}): {cm.get('text')}")
+            # Nuevo comentario
+            new_comment = st.text_area("Escribe un comentario...", key=f"comment_{doc_id}")
+            if st.button("Agregar comentario", key=f"add_comment_{doc_id}"):
+                if user and new_comment:
+                    add_comment(doc_id, user, new_comment)
+                    st.experimental_rerun()
+                else:
+                    st.error("Ingresa usuario y comentario para agregar.")
 
 if __name__ == "__main__":
     main()
