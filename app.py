@@ -31,9 +31,12 @@ def upload_data(file):
     db = init_firebase()
     sheets = pd.read_excel(file, sheet_name=None)
     for sheet_name, df_sheet in sheets.items():
-        # Eliminar columna reservada si existe
+        # Eliminar columnas no deseadas si existen
+        # Campo reservado Firestore
         if "PowerAppsId" in df_sheet.columns:
             df_sheet = df_sheet.drop(columns=["PowerAppsId"])
+        # Columnas de índice de pandas
+        df_sheet = df_sheet.loc[:, ~df_sheet.columns.str.startswith('Unnamed')]
 
         # Definir nombre de colección: genérico para Americas
         if sheet_name.lower() == "americas":
@@ -47,7 +50,10 @@ def upload_data(file):
             doc.reference.delete()
         # Subir nuevos registros
         for idx, row in df_sheet.iterrows():
-            col.document(str(idx)).set(row.to_dict())
+            try:
+                col.document(str(idx)).set(row.dropna().to_dict())
+            except Exception as e:
+                st.sidebar.error(f"Error subiendo fila {idx}: {e}")
 
 # Encuentra columna por palabra clave
 def find_column(df, keywords):
@@ -79,13 +85,13 @@ def show_tab(df: pd.DataFrame, sheet_label: str):
 
     # Filtros dependientes
     df_f = df.copy()
-    sel_preparer = st.selectbox("Preparer", ["Todos"] + sorted(df_f[preparer_col].dropna().unique()))
+    sel_preparer = st.selectbox("Preparer", ["Todos"] + sorted(df_f.get(preparer_col, []).dropna().unique()))
     if sel_preparer != "Todos":
         df_f = df_f[df_f[preparer_col] == sel_preparer]
-    sel_country = st.selectbox("Country", ["Todos"] + sorted(df_f[country_col].dropna().unique()))
+    sel_country = st.selectbox("Country", ["Todos"] + sorted(df_f.get(country_col, []).dropna().unique()))
     if sel_country != "Todos":
         df_f = df_f[df_f[country_col] == sel_country]
-    sel_filler = st.selectbox("Filler", ["Todos"] + sorted(df_f[filler_col].dropna().unique()))
+    sel_filler = st.selectbox("Filler", ["Todos"] + sorted(df_f.get(filler_col, []).dropna().unique()))
     if sel_filler != "Todos":
         df_f = df_f[df_f[filler_col] == sel_filler]
 
@@ -93,7 +99,7 @@ def show_tab(df: pd.DataFrame, sheet_label: str):
     col1, col2 = st.columns([1, 3])
     with col1:
         st.subheader("Cuentas GL")
-        gls = sorted(df_f[gl_col].dropna().unique())
+        gls = sorted(df_f.get(gl_col, []).dropna().unique())
         selected_gl = st.selectbox("Selecciona GL Account Name", gls)
 
     with col2:
@@ -126,11 +132,8 @@ def main():
         st.sidebar.header("Cargar nueva data")
         file = st.sidebar.file_uploader("Excel (.xlsx/.xls)", type=["xlsx", "xls"], key="admin_upload")
         if file and st.sidebar.button("Subir a Firestore"):
-            try:
-                upload_data(file)
-                st.sidebar.success("Datos subidos correctamente.")
-            except Exception as e:
-                st.sidebar.error(f"Error al subir: {e}")
+            upload_data(file)
+            st.sidebar.success("Datos subidos correctamente.")
 
     # Crear tabs desde colecciones
     collections = list_collections()
