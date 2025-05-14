@@ -5,6 +5,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 
 # Inicializa Firebase y retorna cliente
+@st.cache_resource
 def init_firebase():
     if not firebase_admin._apps:
         creds = st.secrets["firebase_credentials"]
@@ -13,6 +14,7 @@ def init_firebase():
     return firestore.client()
 
 # Carga los datos desde la colección única
+@st.cache_data(ttl=300)
 def load_data():
     db = init_firebase()
     docs = db.collection("reconciliation_records").stream()
@@ -21,12 +23,10 @@ def load_data():
         data = doc.to_dict()
         data['_id'] = doc.id
         records.append(data)
-    df = pd.DataFrame(records)
-    if df.empty:
-        st.warning("No se encontraron datos. Usa el modo Admin para cargar un Excel.")
-    return df
+    return pd.DataFrame(records)
 
 # Obtiene comentarios ordenados por timestamp
+@st.cache_data(ttl=60)
 def get_comments(record_id):
     db = init_firebase()
     comments = []
@@ -49,14 +49,6 @@ def add_comment(record_id, user, text):
         'timestamp': firestore.SERVER_TIMESTAMP
     })
 
-# Encuentra columna por keywords
-def find_column(df, keys):
-    for k in keys:
-        for c in df.columns:
-            if k.lower() in c.lower():
-                return c
-    return None
-
 # Admin: sube Excel a Firestore
 def upload_data(file):
     db = init_firebase()
@@ -70,12 +62,20 @@ def upload_data(file):
     for idx, row in df_sheet.iterrows():
         col.document(str(idx)).set(row.dropna().to_dict())
 
+# Encuentra columna por keywords
+def find_column(df, keys):
+    for k in keys:
+        for c in df.columns:
+            if k.lower() in c.lower():
+                return c
+    return None
+
 # Interfaz principal
 def main():
     st.set_page_config(layout="wide")
     st.title("Dashboard de Reconciliación GL")
 
-    # Sidebar: usuario y admin
+    # Sidebar: usuario y admin upload
     user = st.sidebar.text_input("Usuario (para comentarios)")
     admin_code = st.secrets.get("admin_code", "ADMIN")
     pwd = st.sidebar.text_input("Clave Admin", type="password")
@@ -83,82 +83,103 @@ def main():
     if pwd:
         st.sidebar.success("Admin" if is_admin else "Clave incorrecta")
     if is_admin:
-        file = st.sidebar.file_uploader("Cargar Excel", type=["xlsx","xls"])
+        file = st.sidebar.file_uploader("Cargar Excel (.xlsx/.xls)", type=["xlsx","xls"])
         if file and st.sidebar.button("Subir a Firestore"):
             upload_data(file)
             st.sidebar.success("Datos cargados")
             st.experimental_rerun()
 
-    # DataFrame principal
+    # Cargar datos
     df = load_data()
     if df.empty:
+        st.warning("No hay datos. Carga un Excel en el modo Admin.")
         return
 
-    # Columnas clave
+    # Detectar columnas clave
     gl_col = find_column(df, ["gl account name", "gl name", "account name"])
     reviewer_col = find_column(df, ["assigned reviewer", "reviewed by", "owner"])
     cluster_col = find_column(df, ["cluster"])
     completed_col = find_column(df, ["completed"])
     date_col = find_column(df, ["completion date", "date"])
-    comment_key = "comments"
+    filter_preparer_col = find_column(df, ["preparer"])
+    filter_country_col = find_column(df, ["country"])
+    filter_filler_col = find_column(df, ["fc input", "filler"])
 
+    # Validar columna GL
     if not gl_col:
-        st.error(f"No se encontró columna GL en: {df.columns.tolist()}")
+        st.error(f"No se encontró columna GL. Columnas disponibles: {df.columns.tolist()}")
         return
 
-    # Layout: menú izquierdo y panel derecho
-    col1, col2 = st.columns([1.5, 3])
-    # Menú de cuentas GL
-    with col1:
-        st.header("Cuentas GL")
-        gl_list = sorted(df[gl_col].dropna().unique())
-        selected = st.radio("", gl_list)
+    # Filtros en sidebar
+    df_f = df.copy()
+    st.sidebar.header("Filtros")
+    if filter_preparer_col:
+        opts = ["Todos"] + sorted(df_f[filter_preparer_col].dropna().unique())
+        sel = st.sidebar.selectbox("Preparer", opts)
+        if sel != "Todos":
+            df_f = df_f[df_f[filter_preparer_col] == sel]
+    if filter_country_col:
+        opts = ["Todos"] + sorted(df_f[filter_country_col].dropna().unique())
+        sel = st.sidebar.selectbox("Country", opts)
+        if sel != "Todos":
+            df_f = df_f[df_f[filter_country_col] == sel]
+    if filter_filler_col:
+        opts = ["Todos"] + sorted(df_f[filter_filler_col].dropna().unique())
+        sel = st.sidebar.selectbox("Filler", opts)
+        if sel != "Todos":
+            df_f = df_f[df_f[filter_filler_col] == sel]
 
-    # Panel de detalles
-    with col2:
-        st.header(selected)
-        rec = df[df[gl_col] == selected].iloc[0]
+    # Mostrar cards expandibles para cada cuenta GL
+    for idx, rec in df_f.iterrows():
+        gl_name = rec.get(gl_col)
         rec_id = rec.get('_id')
-        # Mostrar campos principales
-        if reviewer_col:
-            st.write(f"**Assigned Reviewer:** {rec.get(reviewer_col)}")
-        if cluster_col:
-            st.write(f"**Cluster:** {rec.get(cluster_col)}")
-        # Completed y Fecha
-        completed = str(rec.get(completed_col)).lower() in ['yes','true','1'] if completed_col else False
-        chk = st.checkbox("Completed", value=completed)
-        # Fecha
-        default_date = datetime.date.today()
-        if date_col:
-            try:
-                default_date = pd.to_datetime(rec.get(date_col)).date()
-            except:
-                pass
-        new_dt = st.date_input("Completion Date", value=default_date)
-        if st.button("Guardar cambios"):
-            updates = {}
-            if completed_col:
-                updates[completed_col] = 'Yes' if chk else 'No'
+        if not gl_name or not rec_id:
+            continue
+        with st.expander(gl_name):
+            # Campos principales
+            if reviewer_col:
+                st.write(f"**Assigned Reviewer:** {rec.get(reviewer_col)}")
+            if cluster_col:
+                st.write(f"**Cluster:** {rec.get(cluster_col)}")
+            # Completed y fecha
+            completed = str(rec.get(completed_col)).lower() in ['yes','true','1'] if completed_col else False
+            chk_key = f"chk_{rec_id}"
+            new_completed = st.checkbox("Completed", value=completed, key=chk_key)
+            date_key = f"date_{rec_id}"
+            default_date = datetime.date.today()
             if date_col:
-                updates[date_col] = new_dt.strftime('%Y-%m-%d')
-            if updates:
-                db = init_firebase()
-                db.collection("reconciliation_records").document(rec_id).update(updates)
-                st.success("Datos actualizados")
-        st.markdown("---")
-        # Comentarios estilo chat
-        st.subheader("Comentarios")
-        for c in get_comments(rec_id):
-            ts = c.get('timestamp')
-            t_str = ts.strftime('%Y-%m-%d %H:%M') if isinstance(ts, datetime.datetime) else ''
-            st.markdown(f"**{c.get('user','Anon')}** ({t_str}): {c.get('text')}  ")
-        new_c = st.text_area("Nuevo comentario:")
-        if st.button("Agregar comentario"):
-            if user and new_c:
-                add_comment(rec_id, user, new_c)
-                st.experimental_rerun()
-            else:
-                st.error("Proporciona usuario y comentario.")
+                try:
+                    default_date = pd.to_datetime(rec.get(date_col)).date()
+                except:
+                    pass
+            new_date = st.date_input("Completion Date", value=default_date, key=date_key)
+            save_key = f"save_{rec_id}"
+            if st.button("Guardar cambios", key=save_key):
+                updates = {}
+                if completed_col:
+                    updates[completed_col] = 'Yes' if new_completed else 'No'
+                if date_col:
+                    updates[date_col] = new_date.strftime('%Y-%m-%d')
+                if updates:
+                    db = init_firebase()
+                    db.collection("reconciliation_records").document(rec_id).update(updates)
+                    st.success("Registro actualizado.")
+            st.markdown("---")
+            # Comentarios estilo chat
+            st.subheader("Comentarios")
+            for c in get_comments(rec_id):
+                ts = c.get('timestamp')
+                t_str = ts.strftime('%Y-%m-%d %H:%M') if isinstance(ts, datetime.datetime) else ''
+                st.markdown(f"**{c.get('user','Anon')}** ({t_str}): {c.get('text')}")
+            c_key = f"comment_{rec_id}"
+            new_c = st.text_area("Nuevo comentario:", key=c_key)
+            add_key = f"add_{rec_id}"
+            if st.button("Agregar comentario", key=add_key):
+                if user and new_c:
+                    add_comment(rec_id, user, new_c)
+                    st.experimental_rerun()
+                else:
+                    st.error("Proporciona usuario y comentario.")
 
 if __name__ == '__main__':
     main()
