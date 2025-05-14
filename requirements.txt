@@ -1,3 +1,6 @@
 streamlit>=1.18.1
+pandas>=1.4.0
+openpyxl>=3.0.0        # para leer archivos .xlsx
+xlrd>=2.0.1            # para leer archivos .xls
 firebase-admin>=5.2.0
 google-cloud-firestore>=2.7.0
