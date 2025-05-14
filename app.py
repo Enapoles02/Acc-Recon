@@ -3,7 +3,8 @@ import pandas as pd
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-# Inicializa Firebase Admin SDK
+# Inicializa Firebase Admin SDK y retorna cliente
+@st.cache_resource
 def init_firebase():
     if not firebase_admin._apps:
         creds = st.secrets["firebase_credentials"]
@@ -11,32 +12,96 @@ def init_firebase():
         firebase_admin.initialize_app(credentials.Certificate(cred_dict))
     return firestore.client()
 
-# Carga los datos desde Firestore a un DataFrame
-def load_data():
+# Lista las colecciones de Firestore que empiezan con nuestro prefijo
+@st.cache_data(ttl=600)
+def list_collections():
     db = init_firebase()
-    COLLECTION_NAME = "reconciliation_records"  # Ajusta si tu colección tiene otro nombre
-    docs = db.collection(COLLECTION_NAME).stream()
-    data = [doc.to_dict() for doc in docs]
-    df = pd.DataFrame(data)
-    if df.empty:
-        st.warning("No se encontraron datos en Firestore. ¿Has cargado la colección correctamente?")
+    return [col.id for col in db.collections() if col.id.startswith("reconciliation_records_")]
+
+# Carga datos de una colección en DataFrame
+@st.cache_data(ttl=600)
+def load_data(collection_name: str) -> pd.DataFrame:
+    db = init_firebase()
+    docs = db.collection(collection_name).stream()
+    df = pd.DataFrame([doc.to_dict() for doc in docs])
     return df
 
-# Función para reemplazar toda la colección con nuevo DataFrame
-def upload_data(df: pd.DataFrame):
+# Admin: sube cada pestaña de Excel como colección separada
+def upload_data(file):
     db = init_firebase()
-    col = db.collection("reconciliation_records")
-    for doc in col.stream():
-        doc.reference.delete()
-    for idx, row in df.iterrows():
-        col.document(str(idx)).set(row.to_dict())
+    sheets = pd.read_excel(file, sheet_name=None)
+    for sheet_name, df_sheet in sheets.items():
+        col_name = f"reconciliation_records_{sheet_name}"
+        col = db.collection(col_name)
+        # eliminar existentes
+        for doc in col.stream():
+            doc.reference.delete()
+        # subir nuevos
+        for idx, row in df_sheet.iterrows():
+            col.document(str(idx)).set(row.to_dict())
+
+# Detecta columna por clave parcial
+def find_column(df, keywords):
+    for kw in keywords:
+        for col in df.columns:
+            if kw.lower() in col.lower():
+                return col
+    return None
+
+# Lógica de visualización y filtros dentro de cada pestaña
+def show_tab(df: pd.DataFrame, sheet_label: str):
+    st.header(f"Sheet: {sheet_label}")
+    if df.empty:
+        st.info("No hay datos en esta pestaña.")
+        return
+
+    # Rename dinámico opcional para consistencia interna
+    # Encuentra nombres de columnas clave
+    gl_col = find_column(df, ["gl account name", "gl name"])
+    preparer_col = find_column(df, ["preparer"])
+    country_col = find_column(df, ["country"])
+    filler_col = find_column(df, ["fc input", "filler"])
+    completed_col = find_column(df, ["completed"])
+    completion_date_col = find_column(df, ["completion date"] )
+
+    missing = [name for name in [gl_col, preparer_col, country_col, filler_col] if name is None]
+    if missing:
+        st.error(f"Faltan columnas para esta pestaña: {missing}")
+        return
+
+    # Filtros dependientes dentro de la pestaña
+    st.subheader("Filtros")
+    df_filtered = df.copy()
+    sel_preparer = st.selectbox("Preparer", ["Todos"] + sorted(df_filtered[preparer_col].dropna().unique()))
+    if sel_preparer != "Todos": df_filtered = df_filtered[df_filtered[preparer_col] == sel_preparer]
+
+    sel_country = st.selectbox("Country", ["Todos"] + sorted(df_filtered[country_col].dropna().unique()))
+    if sel_country != "Todos": df_filtered = df_filtered[df_filtered[country_col] == sel_country]
+
+    sel_filler = st.selectbox("Filler", ["Todos"] + sorted(df_filtered[filler_col].dropna().unique()))
+    if sel_filler != "Todos": df_filtered = df_filtered[df_filtered[filler_col] == sel_filler]
+
+    # Selección de GL en columna izquierda y detalle en derecha
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        st.subheader("Cuentas GL")
+        gls = sorted(df_filtered[gl_col].dropna().unique())
+        selected_gl = st.selectbox("Selecciona GL Account Name", gls)
+
+    with col2:
+        st.subheader(f"Detalle de '{selected_gl}'")
+        detalle = df_filtered[df_filtered[gl_col] == selected_gl]
+        cols_to_show = []
+        if completed_col: cols_to_show.append(completed_col)
+        if completion_date_col: cols_to_show.append(completion_date_col)
+        st.dataframe(detalle[cols_to_show] if cols_to_show else detalle)
 
 # App principal
 def main():
     st.set_page_config(layout="wide")
     st.title("Dashboard de Reconciliación GL")
 
-    # Modo Admin para cargar datos
+    # Sidebar - Admin
     ADMIN_CODE = st.secrets.get("admin_code", "ADMIN")
     admin_input = st.sidebar.text_input("Clave Admin", type="password")
     is_admin = (admin_input == ADMIN_CODE)
@@ -45,78 +110,31 @@ def main():
             st.sidebar.success("Modo Admin activado")
         else:
             st.sidebar.error("Clave incorrecta")
+
     if is_admin:
         st.sidebar.markdown("---")
         st.sidebar.header("Cargar nueva data")
         file = st.sidebar.file_uploader("Excel (.xlsx/.xls)", type=["xlsx", "xls"], key="admin_upload")
         if file and st.sidebar.button("Cargar a Firestore", key="upload_btn"):
             try:
-                df_new = pd.read_excel(file)
-                upload_data(df_new)
-                st.sidebar.success("Datos cargados correctamente.")
+                upload_data(file)
+                st.sidebar.success("Datos subidos correctamente.")
             except Exception as e:
-                st.sidebar.error(f"Error al cargar datos: {e}")
+                st.sidebar.error(f"Error al subir: {e}")
 
-    # Cargar y validar datos
-    df = load_data()
-    if df.empty:
+    # Cargar pestañas disponibles
+    collections = list_collections()
+    if not collections:
+        st.warning("No hay colecciones cargadas. Usa el modo Admin para subir datos.")
         return
 
-    # Renombrar columnas conocidas si existen\    
-    rename_map = {
-        "GL Account name": "gl_name",
-        "Completed": "completed",
-        "Completion date": "completion_date",
-        "Preparer from team": "preparer",
-        "FC Input": "filler",
-        "Country": "country"
-    }
-    df.rename(columns={k:v for k,v in rename_map.items() if k in df.columns}, inplace=True)
-
-    # Detectar columnas dinámicas para filtros y GL
-    preparer_col = "preparer" if "preparer" in df.columns else next((c for c in df.columns if "Preparer" in c), None)
-    country_col = "country" if "country" in df.columns else next((c for c in df.columns if c.lower() == "country"), None)
-    filler_col = "filler" if "filler" in df.columns else next((c for c in df.columns if "FC Input" in c), None)
-    gl_col = "gl_name" if "gl_name" in df.columns else next((c for c in df.columns if "GL Account name" in c), None)
-
-    # Validar columnas necesarias
-    missing = [name for name in [preparer_col, country_col, filler_col, gl_col] if name is None]
-    if missing:
-        st.error(f"No se encontraron columnas necesarias: {missing}. Columnas disponibles: {df.columns.tolist()}")
-        return
-
-    # Filtros dependientes en sidebar
-    st.sidebar.markdown("---")
-    st.sidebar.header("Filtros")
-    preparers = ["Todos"] + sorted(df[preparer_col].dropna().unique().tolist())
-    sel_preparer = st.sidebar.selectbox("Preparer", preparers)
-    if sel_preparer != "Todos": df = df[df[preparer_col] == sel_preparer]
-
-    countries = ["Todos"] + sorted(df[country_col].dropna().unique().tolist())
-    sel_country = st.sidebar.selectbox("Country", countries)
-    if sel_country != "Todos": df = df[df[country_col] == sel_country]
-
-    fillers = ["Todos"] + sorted(df[filler_col].dropna().unique().tolist())
-    sel_filler = st.sidebar.selectbox("Filler", fillers)
-    if sel_filler != "Todos": df = df[df[filler_col] == sel_filler]
-
-    # Layout principal: GL selector y detalle
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        st.subheader("Cuentas GL")
-        gls = sorted(df[gl_col].dropna().unique().tolist())
-        selected_gl = st.selectbox("Selecciona GL Account Name", gls)
-
-    with col2:
-        st.subheader(f"Detalle de '{selected_gl}'")
-        detalle = df[df[gl_col] == selected_gl]
-        if not detalle.empty:
-            st.dataframe(detalle[[
-                rename_map.get("Completed", "Completed" ),
-                rename_map.get("Completion date", "Completion date")
-            ]])
-        else:
-            st.write("No hay datos para la cuenta seleccionada.")
+    # Crear pestañas según sheets
+    sheets = [col.replace("reconciliation_records_", "") for col in collections]
+    tabs = st.tabs(sheets)
+    for tab, sheet_label, col_name in zip(tabs, sheets, collections):
+        with tab:
+            df = load_data(col_name)
+            show_tab(df, sheet_label)
 
 if __name__ == "__main__":
     main()
