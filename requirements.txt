@@ -1,4 +1,6 @@
 streamlit
 pandas
-firebase-admin
 openpyxl
+firebase-admin
+google-cloud-firestore
+google-cloud-storage
