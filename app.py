@@ -129,6 +129,19 @@ def abbr(country):
 
 # ------------------ Main App ------------------
 def main():
+    # CSS para botones de tamaño uniforme
+    st.markdown("""
+    <style>
+    .stButton>button {
+        height: 80px;
+        max-width: 300px;
+        white-space: normal;
+        overflow: hidden;
+        text-align: center;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     st.set_page_config(layout="wide")
     st.title("Dashboard de Reconciliación GL")
 
