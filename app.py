@@ -10,11 +10,18 @@ def init_firebase():
     if not firebase_admin._apps:
         creds = st.secrets["firebase_credentials"]
         cred_dict = creds.to_dict() if hasattr(creds, "to_dict") else creds
+        # Obtener bucket desde secrets
+        bucket_name = st.secrets.get("firebase_bucket")
+        if not bucket_name:
+            st.error("Error: 'firebase_bucket' no está definido en tus secrets.")
+            st.stop()
         firebase_admin.initialize_app(
             credentials.Certificate(cred_dict),
-            {"storageBucket": st.secrets.get("firebase_bucket")}  # Bucket from secrets
+            {"storageBucket": bucket_name}
         )
     return firestore.client()
+
+# ------------------ Documents ------------------()
 
 # ------------------ Data Loading ------------------
 @st.cache_data(ttl=300)
@@ -79,8 +86,10 @@ def add_comment(rec_id, user, text):
 
 # ------------------ Documents ------------------
 @st.cache_data(ttl=60)
-def get_docs(rec_id):
-    bucket = storage.bucket()
+def def get_docs(rec_id):
+    # Obtener documentos desde Cloud Storage
+    bucket_name = st.secrets.get("firebase_bucket")
+    bucket = storage.bucket(bucket_name)
     prefix = f"reconciliation_records/{rec_id}/"
     blobs = bucket.list_blobs(prefix=prefix)
     docs = []
@@ -92,14 +101,17 @@ def get_docs(rec_id):
 
 
 def upload_doc(rec_id, file, user):
-    bucket = storage.bucket()
+    bucket_name = st.secrets.get("firebase_bucket")
+    bucket = storage.bucket(bucket_name)
     blob = bucket.blob(f"reconciliation_records/{rec_id}/{file.name}")
     blob.upload_from_file(file, content_type=file.type)
     db = init_firebase()
     db.collection("reconciliation_records").document(rec_id).collection("documents").add({
         "filename": file.name, "uploaded_by": user, "timestamp": firestore.SERVER_TIMESTAMP
     })
+    # Limpiar caché de documentos
     get_docs.clear(rec_id)
+(rec_id)
 
 # ------------------ Admin Upload ------------------
 def upload_data(file):
