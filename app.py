@@ -54,7 +54,9 @@ def load_index_data():
             "GL Account": str(data.get(acc_col)).strip(),
             "country": data.get(country_col)
         })
-    return pd.DataFrame(recs)
+    df = pd.DataFrame(recs)
+    df.columns = df.columns.str.strip()
+    return df
 
 @st.cache_data(ttl=60)
 def load_record(rec_id):
