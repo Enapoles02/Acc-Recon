@@ -10,33 +10,38 @@ from firebase_admin import credentials, firestore, storage
 
 # ------------------ Firebase Setup ------------------
 @st.cache_resource
-def init_firebase():
-    """
-    Inicializa Firebase Admin con Firestore y Cloud Storage.
-    """
-    if not firebase_admin._apps:
-        # Carga credenciales desde secrets (puede ser dict o JSON string)
-        raw = st.secrets.get("firebase_credentials")
-        if isinstance(raw, str):
-            try:
-                cred_dict = json.loads(raw)
-            except Exception as e:
-                st.error(f"Error parseando firebase_credentials JSON: {e}")
-                st.stop()
-        else:
-            cred_dict = raw.to_dict() if hasattr(raw, "to_dict") else raw
-        # Determina bucket: secreto o project_id.appspot.com
-        project_id = cred_dict.get("project_id")
-        bucket_name = st.secrets.get("firebase_bucket") or f"{project_id}.appspot.com"
-        try:
-            firebase_admin.initialize_app(
-                credentials.Certificate(cred_dict),
-                {"storageBucket": bucket_name}
-            )
-        except Exception as e:
-            st.error(f"Error inicializando Firebase Admin SDK: {e}")
-            st.stop()
-    return firestore.client()
+@st.cache_resource
+ def init_firebase():
+     """
+     Inicializa Firebase Admin con Firestore y Cloud Storage.
+     """
+     if not firebase_admin._apps:
+         # Carga credenciales desde secrets
+         raw = st.secrets.get("firebase_credentials")
+         if isinstance(raw, str):
+             try:
+                 cred_dict = json.loads(raw)
+             except Exception as e:
+                 st.error(f"Error parseando firebase_credentials JSON: {e}")
+                 st.stop()
+         else:
+             cred_dict = raw.to_dict() if hasattr(raw, "to_dict") else raw
+         # Obtener bucket desde secrets y limpiar gs:// si está
+         bucket_raw = st.secrets.get("firebase_bucket")
+         if not bucket_raw:
+             st.error("Error: 'firebase_bucket' no está definido en tus secrets.")
+             st.stop()
+         bucket_name = bucket_raw.removeprefix("gs://")  # Python 3.9+
+         # Inicializar app con Storage bucket
+         try:
+             firebase_admin.initialize_app(
+                 credentials.Certificate(cred_dict),
+                 {"storageBucket": bucket_name}
+             )
+         except Exception as e:
+             st.error(f"Error inicializando Firebase Admin SDK: {e}")
+             st.stop()
+     return firestore.client()
 
 # ------------------ Data Loading ------------------
 @st.cache_data(ttl=300)
