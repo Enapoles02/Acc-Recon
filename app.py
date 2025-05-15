@@ -4,19 +4,20 @@ import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 
-st.write("STREAMLIT SECRETS:", st.secrets)
-
 # ------------------ Firebase Setup ------------------
 @st.cache_resource
 def init_firebase():
+    """
+    Inicializa Firebase Admin con Firestore y Cloud Storage.
+    Usa firebase_bucket de secrets o infiere del project_id.
+    """
     if not firebase_admin._apps:
-        creds = st.secrets["firebase_credentials"]
-        cred_dict = creds.to_dict() if hasattr(creds, "to_dict") else creds
-        # Obtener bucket desde secrets
-        bucket_name = st.secrets.get("firebase_bucket")
-        if not bucket_name:
-            st.error("Error: 'firebase_bucket' no está definido en tus secrets.")
-            st.stop()
+        # Carga credenciales JSON
+        cred_dict = st.secrets["firebase_credentials"]
+        # Infer bucket: usa secret o project_id.appspot.com
+        project_id = cred_dict.get("project_id")
+        bucket_name = st.secrets.get("firebase_bucket", f"{project_id}.appspot.com")
+        # Inicializa app con Storage bucket
         firebase_admin.initialize_app(
             credentials.Certificate(cred_dict),
             {"storageBucket": bucket_name}
@@ -26,60 +27,76 @@ def init_firebase():
 # ------------------ Data Loading ------------------
 @st.cache_data(ttl=300)
 def load_index_data():
+    """
+    Carga índice con GL NAME y Country desde Firestore.
+    """
     db = init_firebase()
     col = db.collection("reconciliation_records")
     sample = next(col.limit(1).stream(), None)
     if not sample:
         return pd.DataFrame()
-    keys = sample.to_dict().keys()
-    # Columnas fijas según Excel
+    data_keys = sample.to_dict().keys()
+    # Columnas fijas según tu Excel
     gl_col = "GL NAME"
     country_col = "Country"
-    if gl_col not in keys or country_col not in keys:
+    if gl_col not in data_keys or country_col not in data_keys:
+        st.error(f"Columnas faltantes. Esperaba: {gl_col}, {country_col}. Encontradas: {list(data_keys)}")
         return pd.DataFrame()
     try:
         docs = col.select([gl_col, country_col]).stream()
     except Exception:
         docs = col.stream()
-    recs = []
+    records = []
     for d in docs:
-        data = d.to_dict()
-        recs.append({"_id": d.id, "gl_name": data.get(gl_col), "country": data.get(country_col)})
-    return pd.DataFrame(recs)
+        record = d.to_dict()
+        records.append({
+            "_id": d.id,
+            "gl_name": record.get(gl_col),
+            "country": record.get(country_col)
+        })
+    return pd.DataFrame(records)
 
 @st.cache_data(ttl=60)
 def load_record(rec_id):
+    """
+    Carga detalle completo de un registro.
+    """
     db = init_firebase()
     doc = db.collection("reconciliation_records").document(rec_id).get()
     if not doc.exists:
         return {}
-    d = doc.to_dict()
-    d["_id"] = rec_id
-    return d
+    rec = doc.to_dict()
+    rec["_id"] = rec_id
+    return rec
 
 # ------------------ Comments ------------------
 @st.cache_data(ttl=60)
 def get_comments(rec_id):
     db = init_firebase()
     coll = db.collection("reconciliation_records").document(rec_id).collection("comments")
-    coms = []
+    comments = []
     for d in coll.order_by("timestamp").stream():
         c = d.to_dict()
         ts = c.get("timestamp")
         if hasattr(ts, "to_datetime"):
             c["timestamp"] = ts.to_datetime()
-        coms.append(c)
-    return coms
+        comments.append(c)
+    return comments
 
 def add_comment(rec_id, user, text):
     db = init_firebase()
     db.collection("reconciliation_records").document(rec_id).collection("comments").add({
-        "user": user, "text": text, "timestamp": firestore.SERVER_TIMESTAMP
+        "user": user,
+        "text": text,
+        "timestamp": firestore.SERVER_TIMESTAMP
     })
 
 # ------------------ Documents ------------------
 @st.cache_data(ttl=60)
 def get_docs(rec_id):
+    """
+    Lista y firma URLs de documentos en Cloud Storage.
+    """
     bucket_name = st.secrets.get("firebase_bucket")
     bucket = storage.bucket(bucket_name)
     prefix = f"reconciliation_records/{rec_id}/"
@@ -98,7 +115,9 @@ def upload_doc(rec_id, file, user):
     blob.upload_from_file(file, content_type=file.type)
     db = init_firebase()
     db.collection("reconciliation_records").document(rec_id).collection("documents").add({
-        "filename": file.name, "uploaded_by": user, "timestamp": firestore.SERVER_TIMESTAMP
+        "filename": file.name,
+        "uploaded_by": user,
+        "timestamp": firestore.SERVER_TIMESTAMP
     })
     # Limpiar caché de documentos
     get_docs.clear()
@@ -133,7 +152,7 @@ def abbr(country):
 # ------------------ Main App ------------------
 def main():
     st.set_page_config(layout="wide")
-    # CSS para uniformar botones
+    # CSS uniforme para botones
     st.markdown("""
     <style>
     .stButton>button {
@@ -151,19 +170,19 @@ def main():
 
     user = st.sidebar.text_input("Usuario")
     pwd = st.sidebar.text_input("Admin Key", type="password")
-    is_admin = (pwd == st.secrets.get("admin_code","ADMIN"))
+    is_admin = (pwd == st.secrets.get("admin_code", "ADMIN"))
     if is_admin:
-        file = st.sidebar.file_uploader("Cargar Excel", type=["xlsx","xls"])
+        file = st.sidebar.file_uploader("Cargar Excel", type=["xlsx", "xls"])
         if file and st.sidebar.button("Subir a Firestore"):
             upload_data(file)
-            st.sidebar.success("Datos cargados")
+            st.sidebar.success("Datos cargados correctamente.")
 
     st.sidebar.markdown("---")
     mapping = {
-        "Paula Sarachaga": ["Argentina","Chile","Guatemala"],
+        "Paula Sarachaga": ["Argentina", "Chile", "Guatemala"],
         "Napoles Enrique": ["Canada"],
         "Julio": ["United States of America"],
-        "Guadalupe": ["Mexico","Peru","Panama"]
+        "Guadalupe": ["Mexico", "Peru", "Panama"]
     }
     if not user:
         st.warning("Ingresa tu usuario para filtrar tareas.")
@@ -179,8 +198,10 @@ def main():
     if q:
         df = df[df['gl_name'].str.contains(q, case=False, na=False)]
 
-    if 'start' not in st.session_state: st.session_state['start'] = 0
+    if 'start' not in st.session_state:
+        st.session_state['start'] = 0
     n = len(df)
+
     colL, colR = st.columns([1, 3])
     with colL:
         st.markdown("### Cuentas GL")
@@ -202,17 +223,21 @@ def main():
         else:
             rec = load_record(sel)
             st.subheader(f"{rec.get('gl_name')} - {abbr(rec.get('country',''))}")
-            for f in ['Assigned Reviewer','Cluster']:
-                if f in rec: st.write(f"**{f}:** {rec[f]}")
+            for f in ['Assigned Reviewer', 'Cluster']:
+                if f in rec:
+                    st.write(f"**{f}:** {rec[f]}")
             comp = str(rec.get('Completed','')).lower() in ['yes','true','1']
-            nv = st.checkbox("Completed", value=comp)
+            nv = st.checkbox("Completed", value=comp)  
             try:
                 dv = pd.to_datetime(rec.get('Completion Date')).date()
             except:
                 dv = datetime.date.today()
             nd = st.date_input("Completion Date", value=dv)
             if st.button("Guardar cambios"):
-                updates = {'Completed': 'Yes' if nv else 'No', 'Completion Date': nd.strftime('%Y-%m-%d')}
+                updates = {
+                    'Completed': 'Yes' if nv else 'No',
+                    'Completion Date': nd.strftime('%Y-%m-%d')
+                }
                 init_firebase().collection("reconciliation_records").document(sel).update(updates)
                 st.success("Registro actualizado")
             st.markdown("---")
