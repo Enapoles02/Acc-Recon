@@ -5,6 +5,8 @@ import firebase_admin
 from firebase_admin import credentials, firestore, storage
 
 # ------------------ Firebase Setup ------------------
+import json
+
 @st.cache_resource
 def init_firebase():
     """
@@ -12,16 +14,28 @@ def init_firebase():
     Usa firebase_bucket de secrets o infiere del project_id.
     """
     if not firebase_admin._apps:
-        # Carga credenciales JSON
-        cred_dict = st.secrets["firebase_credentials"]
-        # Infer bucket: usa secret o project_id.appspot.com
+        # Leer credenciales JSON desde secrets
+        raw = st.secrets.get("firebase_credentials")
+        if isinstance(raw, str):
+            try:
+                cred_dict = json.loads(raw)
+            except Exception as e:
+                st.error(f"Error parsing firebase_credentials JSON: {e}")
+                st.stop()
+        else:
+            cred_dict = raw.to_dict() if hasattr(raw, "to_dict") else raw
+        # Inferir bucket: usa secreto o project_id.appspot.com
         project_id = cred_dict.get("project_id")
-        bucket_name = st.secrets.get("firebase_bucket", f"{project_id}.appspot.com")
-        # Inicializa app con Storage bucket
-        firebase_admin.initialize_app(
-            credentials.Certificate(cred_dict),
-            {"storageBucket": bucket_name}
-        )
+        bucket_name = st.secrets.get("firebase_bucket") or f"{project_id}.appspot.com"
+        # Inicializar app con Storage bucket
+        try:
+            firebase_admin.initialize_app(
+                credentials.Certificate(cred_dict),
+                {"storageBucket": bucket_name}
+            )
+        except Exception as e:
+            st.error(f"Error inicializando Firebase Admin SDK: {e}")
+            st.stop()
     return firestore.client()
 
 # ------------------ Data Loading ------------------
