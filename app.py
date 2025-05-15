@@ -135,7 +135,7 @@ def main():
     <style>
     .stButton>button {
         height: 80px;
-        max-width: 300px;
+        width: 300px !important;
         white-space: normal;
         overflow: hidden;
         text-align: center;
