@@ -133,19 +133,14 @@ def main():
     # CSS para botones de tamaño uniforme
     st.markdown("""
     <style>
-    /* Botones GL NAME */
-    .stButton>button:not([title="arrow"]) {
-        height: 80px;
-        width: 300px !important;
+    .stButton>button {
+        min-height: 40px;
+        max-height: 80px;
+        width: auto;
+        max-width: 300px;
         white-space: normal;
         overflow: hidden;
         text-align: center;
-    }
-    /* Botones flecha */
-    .stButton>button[title="arrow"] {
-        height: 40px;
-        width: 40px;
-        padding: 0;
     }
     </style>
     """, unsafe_allow_html=True)
