@@ -4,6 +4,9 @@ import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 
+st.write(st.secrets)
+
+
 # ------------------ Firebase Setup ------------------
 import json
 
