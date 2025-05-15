@@ -21,25 +21,20 @@ def init_firebase():
         )
     return firestore.client()
 
-# ------------------ Documents ------------------()
-
 # ------------------ Data Loading ------------------
 @st.cache_data(ttl=300)
 def load_index_data():
     db = init_firebase()
     col = db.collection("reconciliation_records")
-    # Tomar un documento de muestra para obtener campos
     sample = next(col.limit(1).stream(), None)
     if not sample:
         return pd.DataFrame()
     keys = sample.to_dict().keys()
-    # Asignación explícita según encabezados de Excel (columna 4 = 'GL NAME', columna 8 = 'Country')
+    # Columnas fijas según Excel
     gl_col = "GL NAME"
     country_col = "Country"
-    # Validar existencia de columnas
     if gl_col not in keys or country_col not in keys:
         return pd.DataFrame()
-    # Cargar solo campos necesarios para el índice
     try:
         docs = col.select([gl_col, country_col]).stream()
     except Exception:
@@ -47,11 +42,7 @@ def load_index_data():
     recs = []
     for d in docs:
         data = d.to_dict()
-        recs.append({
-            "_id": d.id,
-            "gl_name": data.get(gl_col),
-            "country": data.get(country_col)
-        })
+        recs.append({"_id": d.id, "gl_name": data.get(gl_col), "country": data.get(country_col)})
     return pd.DataFrame(recs)
 
 @st.cache_data(ttl=60)
@@ -73,10 +64,10 @@ def get_comments(rec_id):
     for d in coll.order_by("timestamp").stream():
         c = d.to_dict()
         ts = c.get("timestamp")
-        if hasattr(ts, "to_datetime"): c["timestamp"] = ts.to_datetime()
+        if hasattr(ts, "to_datetime"):
+            c["timestamp"] = ts.to_datetime()
         coms.append(c)
     return coms
-
 
 def add_comment(rec_id, user, text):
     db = init_firebase()
@@ -86,8 +77,7 @@ def add_comment(rec_id, user, text):
 
 # ------------------ Documents ------------------
 @st.cache_data(ttl=60)
-def def get_docs(rec_id):
-    # Obtener documentos desde Cloud Storage
+def get_docs(rec_id):
     bucket_name = st.secrets.get("firebase_bucket")
     bucket = storage.bucket(bucket_name)
     prefix = f"reconciliation_records/{rec_id}/"
@@ -99,7 +89,6 @@ def def get_docs(rec_id):
         docs.append({"filename": name, "url": url})
     return docs
 
-
 def upload_doc(rec_id, file, user):
     bucket_name = st.secrets.get("firebase_bucket")
     bucket = storage.bucket(bucket_name)
@@ -110,8 +99,7 @@ def upload_doc(rec_id, file, user):
         "filename": file.name, "uploaded_by": user, "timestamp": firestore.SERVER_TIMESTAMP
     })
     # Limpiar caché de documentos
-    get_docs.clear(rec_id)
-(rec_id)
+    get_docs.clear()
 
 # ------------------ Admin Upload ------------------
 def upload_data(file):
@@ -120,7 +108,8 @@ def upload_data(file):
     df = df.loc[:, ~df.columns.str.startswith('Unnamed')]
     db = init_firebase()
     col_ref = db.collection("reconciliation_records")
-    for d in col_ref.stream(): d.reference.delete()
+    for d in col_ref.stream():
+        d.reference.delete()
     for i, row in df.iterrows():
         col_ref.document(str(i)).set(row.dropna().to_dict())
     load_index_data.clear()
@@ -142,7 +131,7 @@ def abbr(country):
 # ------------------ Main App ------------------
 def main():
     st.set_page_config(layout="wide")
-    # CSS para botones de tamaño uniforme
+    # CSS para uniformar botones
     st.markdown("""
     <style>
     .stButton>button {
@@ -177,6 +166,7 @@ def main():
     if not user:
         st.warning("Ingresa tu usuario para filtrar tareas.")
         return
+
     df = load_index_data()
     if df.empty:
         st.error("Sin datos o columnas faltantes.")
@@ -214,8 +204,10 @@ def main():
                 if f in rec: st.write(f"**{f}:** {rec[f]}")
             comp = str(rec.get('Completed','')).lower() in ['yes','true','1']
             nv = st.checkbox("Completed", value=comp)
-            try: dv = pd.to_datetime(rec.get('Completion Date')).date()
-            except: dv = datetime.date.today()
+            try:
+                dv = pd.to_datetime(rec.get('Completion Date')).date()
+            except:
+                dv = datetime.date.today()
             nd = st.date_input("Completion Date", value=dv)
             if st.button("Guardar cambios"):
                 updates = {'Completed': 'Yes' if nv else 'No', 'Completion Date': nd.strftime('%Y-%m-%d')}
@@ -225,7 +217,8 @@ def main():
             st.subheader("Documentos")
             docs = get_docs(sel)
             st.write(f"Cargados: {len(docs)}")
-            for d in docs: st.markdown(f"- [{d['filename']}]({d['url']})")
+            for d in docs:
+                st.markdown(f"- [{d['filename']}]({d['url']})")
             up = st.file_uploader("Subir documento", key=f"doc_{sel}")
             if up and st.button("Agregar documento", key=f"adddoc_{sel}"):
                 upload_doc(sel, up, user)
@@ -233,7 +226,8 @@ def main():
             st.markdown("---")
             st.subheader("Comentarios")
             for c in get_comments(sel):
-                ts = c.get('timestamp'); txt = ts.strftime('%Y-%m-%d %H:%M') if hasattr(ts,'strftime') else ''
+                ts = c.get('timestamp')
+                txt = ts.strftime('%Y-%m-%d %H:%M') if hasattr(ts,'strftime') else ''
                 st.markdown(f"**{c.get('user')}** ({txt}): {c.get('text')}")
             nc = st.text_area("Nuevo comentario", key=f"com_{sel}")
             if st.button("Agregar comentario", key=f"addcom_{sel}"):
