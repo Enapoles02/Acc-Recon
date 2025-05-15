@@ -149,7 +149,7 @@ def main():
         padding: 0;
     }
     </style>
-    """, unsafe_allow_html=True))
+    """, unsafe_allow_html=True)
     st.title("Dashboard de Reconciliación GL")
 
     user = st.sidebar.text_input("Usuario")
