@@ -170,7 +170,9 @@ def main():
     df = load_index_data()
     map_df = load_mapping()
 
-    # ✅ Corrección para evitar error por índice duplicado
+    # ✅ Corrección de tipos para merge seguro
+    df["account"] = df["account"].astype(str)
+    map_df["Account"] = map_df["Account"].astype(str)
     df = df.merge(map_df[["Account", "GL-ReviewGroup"]], left_on="account", right_on="Account", how="left")
     df["ReviewGroup"] = df["GL-ReviewGroup"].fillna("Others")
 
