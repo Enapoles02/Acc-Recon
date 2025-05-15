@@ -130,9 +130,8 @@ def abbr(country):
 # ------------------ Main App ------------------
 def main():
     st.set_page_config(layout="wide")
-
     # CSS para botones de tamaño uniforme
-        st.markdown("""
+    st.markdown("""
     <style>
     .stButton>button {
         height: 80px;
@@ -143,9 +142,7 @@ def main():
     }
     </style>
     """, unsafe_allow_html=True)
-    
-    st.set_page_config(layout="wide")
-    st.title("Dashboard de Reconciliación GL")
+    st.title("Dashboard de Reconciliación GL")("Dashboard de Reconciliación GL")
 
     user = st.sidebar.text_input("Usuario")
     pwd = st.sidebar.text_input("Admin Key", type="password")
