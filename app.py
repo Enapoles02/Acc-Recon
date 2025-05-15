@@ -35,27 +35,16 @@ def load_mapping():
 def load_index_data():
     db, _ = init_firebase()
     col = db.collection("reconciliation_records")
-    sample = next(col.limit(1).stream(), None)
-    if not sample:
-        return pd.DataFrame()
-    gl_col = "GL NAME"
-    acc_col = "GL ACCOUNT"
-    country_col = "Country"
-    try:
-        docs = col.select([gl_col, acc_col, country_col]).stream()
-    except Exception:
-        docs = col.stream()
+    docs = col.stream()
     recs = []
     for d in docs:
         data = d.to_dict()
-        recs.append({
-            "_id": d.id,
-            "gl_name": data.get(gl_col),
-            "GL Account": str(data.get(acc_col)).strip(),
-            "country": data.get(country_col)
-        })
+        flat_data = {"_id": d.id}
+        for k, v in data.items():
+            flat_data[str(k).strip()] = str(v).strip() if v is not None else None
+        recs.append(flat_data)
     df = pd.DataFrame(recs)
-    df.columns = df.columns.str.strip()
+    df.columns = df.columns.str.strip().str.replace(r'\s+', ' ', regex=True)
     return df
 
 # ------------------ App principal ------------------
@@ -71,8 +60,10 @@ def main():
     df.columns = df.columns.str.strip().str.replace(r'\s+', ' ', regex=True)
     map_df.columns = map_df.columns.str.strip().str.replace(r'\s+', ' ', regex=True)
 
-    df["GL Account"] = df["GL Account"].astype(str).str.strip()
-    map_df["GL Account"] = map_df["GL Account"].astype(str).str.strip()
+    if "GL Account" in df.columns:
+        df["GL Account"] = df["GL Account"].astype(str).str.strip()
+    if "GL Account" in map_df.columns:
+        map_df["GL Account"] = map_df["GL Account"].astype(str).str.strip()
 
     if st.checkbox("🔍 Ver datos brutos de Firebase"):
         st.dataframe(df)
@@ -80,24 +71,26 @@ def main():
     if st.checkbox("📄 Ver Mapping completo (sin combinar)"):
         st.dataframe(map_df)
 
-    # Asignar grupo desde Mapping
-    df = df.merge(map_df, on="GL Account", how="left")
-    df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
+    if "GL Account" in df.columns and "GL Account" in map_df.columns:
+        df = df.merge(map_df, on="GL Account", how="left")
+        df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
 
-    st.subheader("🧭 Comparación de Mapping")
-    st.write(f"Total cuentas distintas en Mapping: {map_df['GL Account'].nunique()}")
-    st.write(f"Total cuentas distintas en Firebase: {df['GL Account'].nunique()}")
-    st.write(f"Total líneas en Firebase: {len(df)}")
+        st.subheader("🧭 Comparación de Mapping")
+        st.write(f"Total cuentas distintas en Mapping: {map_df['GL Account'].nunique()}")
+        st.write(f"Total cuentas distintas en Firebase: {df['GL Account'].nunique()}")
+        st.write(f"Total líneas en Firebase: {len(df)}")
 
-    missing = set(df['GL Account'].unique()) - set(map_df['GL Account'].unique())
-    if missing:
-        st.warning(f"⚠️ Cuentas en Firebase NO encontradas en Mapping: {len(missing)}")
-        st.dataframe(sorted(missing))
+        missing = set(df['GL Account'].unique()) - set(map_df['GL Account'].unique())
+        if missing:
+            st.warning(f"⚠️ Cuentas en Firebase NO encontradas en Mapping: {len(missing)}")
+            st.dataframe(sorted(missing))
+        else:
+            st.success("✅ Todas las cuentas están presentes en Mapping.")
+
+        if st.checkbox("📊 Mostrar Data combinada"):
+            st.dataframe(df)
     else:
-        st.success("✅ Todas las cuentas están presentes en Mapping.")
-
-    if st.checkbox("📊 Mostrar Data combinada"):
-        st.dataframe(df)
+        st.error("❌ No se encontró la columna 'GL Account' en los datos.")
 
 if __name__ == '__main__':
     main()
