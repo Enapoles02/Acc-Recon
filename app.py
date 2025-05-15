@@ -4,6 +4,8 @@ import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 
+st.write("STREAMLIT SECRETS:", st.secrets)
+
 # ------------------ Firebase Setup ------------------
 @st.cache_resource
 def init_firebase():
