@@ -3,6 +3,7 @@ import pandas as pd
 import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
+import os
 
 # ------------------ Config ------------------
 st.set_page_config(page_title="Reconciliación GL", layout="wide")
@@ -24,8 +25,10 @@ def init_firebase():
 
 # ------------------ Load Mapping ------------------
 @st.cache_data
-def load_mapping():
-    df_map = pd.read_excel("/mnt/data/Mapping.xlsx")
+def load_mapping(path="/mnt/data/Mapping.xlsx"):
+    if not os.path.exists(path):
+        return pd.DataFrame(columns=["Account", "GL-ReviewGroup"]).set_index("Account")
+    df_map = pd.read_excel(path)
     df_map.columns = df_map.columns.str.strip()
     return df_map.set_index("Account")
 
@@ -121,8 +124,16 @@ def main():
     pwd = st.sidebar.text_input("Admin Key", type="password")
     is_admin = (pwd == st.secrets.get("admin_code", "ADMIN"))
 
-    wd_day = st.sidebar.number_input("Working Day para Deadline (WD+X):", min_value=1, max_value=10, value=3)
-    deadline_base = datetime.date.today().replace(day=1) + datetime.timedelta(days=30)  # provisional fin de mes
+    wd_day = 3  # Default WD+3
+    if is_admin:
+        wd_day = st.sidebar.number_input("Working Day para Deadline (WD+X):", min_value=1, max_value=10, value=3)
+        map_file = st.sidebar.file_uploader("📘 Actualizar Mapping.xlsx", type=["xlsx"])
+        if map_file:
+            with open("/mnt/data/Mapping.xlsx", "wb") as f:
+                f.write(map_file.read())
+            st.sidebar.success("Nuevo Mapping actualizado.")
+
+    deadline_base = datetime.date.today().replace(day=1) + datetime.timedelta(days=30)
     deadline = deadline_base + datetime.timedelta(days=wd_day)
 
     if is_admin:
@@ -150,7 +161,7 @@ def main():
 
     df = load_index_data()
     map_df = load_mapping()
-    df["ReviewGroup"] = df["account"].map(lambda x: map_df.get("GL-ReviewGroup", {}).get(x, "Others"))
+    df["ReviewGroup"] = df["account"].map(lambda x: map_df["GL-ReviewGroup"].get(x, "Others"))
 
     if df.empty:
         st.error("Sin datos o columnas faltantes.")
