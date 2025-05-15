@@ -20,10 +20,14 @@ def init_firebase():
         firebase_admin.initialize_app(cred, {"storageBucket": bucket_name})
     return firestore.client(), bucket_name
 
-# ------------------ Cargar Mapping ------------------
+# ------------------ Cargar Mapping desde Firebase Storage ------------------
 @st.cache_data
 def load_mapping():
-    df_map = pd.read_excel("/mnt/data/Mapping.xlsx")
+    _, bucket_name = init_firebase()
+    bucket = storage.bucket()
+    blob = bucket.blob("Mapping.xlsx")
+    data = blob.download_as_bytes()
+    df_map = pd.read_excel(data)
     df_map.columns = df_map.columns.str.strip()
     return df_map.set_index("Account")
 
@@ -145,8 +149,10 @@ def main():
 
         uploaded_mapping = st.sidebar.file_uploader("Actualizar Mapping.xlsx", type=["xlsx"])
         if uploaded_mapping:
-            with open("/mnt/data/Mapping.xlsx", "wb") as f:
-                f.write(uploaded_mapping.getbuffer())
+            _, bucket_name = init_firebase()
+            bucket = storage.bucket()
+            blob = bucket.blob("Mapping.xlsx")
+            blob.upload_from_file(uploaded_mapping, content_type=uploaded_mapping.type)
             load_mapping.clear()
             st.sidebar.success("Mapping actualizado")
 
