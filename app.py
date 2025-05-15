@@ -74,6 +74,10 @@ def main():
     df["GL Account"] = df["GL Account"].astype(str).str.strip()
     map_df["GL Account"] = map_df["GL Account"].astype(str).str.strip()
 
+    # Asignar grupo desde Mapping
+    df = df.merge(map_df, on="GL Account", how="left")
+    df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
+
     st.subheader("🧭 Comparación de Mapping")
     st.write(f"Total cuentas distintas en Mapping: {map_df['GL Account'].nunique()}")
     st.write(f"Total cuentas distintas en Firebase: {df['GL Account'].nunique()}")
@@ -88,6 +92,9 @@ def main():
 
     if st.checkbox("Mostrar Mapping completo"):
         st.dataframe(map_df)
+
+    if st.checkbox("Mostrar Data combinada"):
+        st.dataframe(df)
 
 if __name__ == '__main__':
     main()
