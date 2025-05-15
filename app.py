@@ -74,6 +74,12 @@ def main():
     df["GL Account"] = df["GL Account"].astype(str).str.strip()
     map_df["GL Account"] = map_df["GL Account"].astype(str).str.strip()
 
+    if st.checkbox("🔍 Ver datos brutos de Firebase"):
+        st.dataframe(df)
+
+    if st.checkbox("📄 Ver Mapping completo (sin combinar)"):
+        st.dataframe(map_df)
+
     # Asignar grupo desde Mapping
     df = df.merge(map_df, on="GL Account", how="left")
     df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
@@ -90,10 +96,7 @@ def main():
     else:
         st.success("✅ Todas las cuentas están presentes en Mapping.")
 
-    if st.checkbox("Mostrar Mapping completo"):
-        st.dataframe(map_df)
-
-    if st.checkbox("Mostrar Data combinada"):
+    if st.checkbox("📊 Mostrar Data combinada"):
         st.dataframe(df)
 
 if __name__ == '__main__':
