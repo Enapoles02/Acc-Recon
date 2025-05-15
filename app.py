@@ -129,8 +129,10 @@ def abbr(country):
 
 # ------------------ Main App ------------------
 def main():
+    st.set_page_config(layout="wide")
+
     # CSS para botones de tamaño uniforme
-    st.markdown("""
+        st.markdown("""
     <style>
     .stButton>button {
         height: 80px;
