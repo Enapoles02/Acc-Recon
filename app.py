@@ -3,13 +3,12 @@ import pandas as pd
 import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
-import os
 
-# ------------------ Config ------------------
+# ------------------ Configuración general ------------------
 st.set_page_config(page_title="Reconciliación GL", layout="wide")
 st.title("Dashboard de Reconciliación GL")
 
-# ------------------ Firebase Init ------------------
+# ------------------ Inicializar Firebase ------------------
 @st.cache_resource
 def init_firebase():
     firebase_creds = st.secrets["firebase_credentials"]
@@ -18,19 +17,17 @@ def init_firebase():
     bucket_name = st.secrets["firebase_bucket"]["firebase_bucket"]
     if not firebase_admin._apps:
         cred = credentials.Certificate(firebase_creds)
-        firebase_admin.initialize_app(cred, {
-            "storageBucket": bucket_name
-        })
+        firebase_admin.initialize_app(cred, {"storageBucket": bucket_name})
     return firestore.client(), bucket_name
 
-# ------------------ Load Mapping ------------------
+# ------------------ Cargar Mapping ------------------
 @st.cache_data
 def load_mapping():
     df_map = pd.read_excel("/mnt/data/Mapping.xlsx")
     df_map.columns = df_map.columns.str.strip()
     return df_map.set_index("Account")
 
-# ------------------ Funciones ------------------
+# ------------------ Funciones de carga ------------------
 @st.cache_data(ttl=300)
 def load_index_data():
     db, _ = init_firebase()
@@ -48,7 +45,12 @@ def load_index_data():
     recs = []
     for d in docs:
         data = d.to_dict()
-        recs.append({"_id": d.id, "gl_name": data.get(gl_col), "account": data.get(acc_col), "country": data.get(country_col)})
+        recs.append({
+            "_id": d.id,
+            "gl_name": data.get(gl_col),
+            "account": data.get(acc_col),
+            "country": data.get(country_col)
+        })
     return pd.DataFrame(recs)
 
 @st.cache_data(ttl=60)
@@ -99,7 +101,9 @@ def upload_doc(rec_id, file, user):
     blob.upload_from_file(file, content_type=file.type)
     db, _ = init_firebase()
     db.collection("reconciliation_records").document(rec_id).collection("documents").add({
-        "filename": file.name, "uploaded_by": user, "timestamp": firestore.SERVER_TIMESTAMP
+        "filename": file.name,
+        "uploaded_by": user,
+        "timestamp": firestore.SERVER_TIMESTAMP
     })
     get_docs.clear()
 
@@ -116,14 +120,14 @@ def abbr(country):
     }
     return m.get(country, country[:3].upper())
 
-# ------------------ App ------------------
+# ------------------ App principal ------------------
 def main():
     user = st.sidebar.text_input("Usuario")
     pwd = st.sidebar.text_input("Admin Key", type="password")
     is_admin = (pwd == st.secrets.get("admin_code", "ADMIN"))
 
     wd_day = st.sidebar.number_input("Working Day para Deadline (WD+X):", min_value=1, max_value=10, value=3)
-    deadline_base = datetime.date.today().replace(day=1) + datetime.timedelta(days=30)  # provisional fin de mes
+    deadline_base = datetime.date.today().replace(day=1) + datetime.timedelta(days=30)
     deadline = deadline_base + datetime.timedelta(days=wd_day)
 
     if is_admin:
@@ -141,9 +145,8 @@ def main():
 
         uploaded_mapping = st.sidebar.file_uploader("Actualizar Mapping.xlsx", type=["xlsx"])
         if uploaded_mapping:
-            os.makedirs("/mnt/data", exist_ok=True)
             with open("/mnt/data/Mapping.xlsx", "wb") as f:
-                f.write(uploaded_mapping.read())
+                f.write(uploaded_mapping.getbuffer())
             load_mapping.clear()
             st.sidebar.success("Mapping actualizado")
 
@@ -153,6 +156,7 @@ def main():
         "Julio": ["United States of America"],
         "Guadalupe": ["Mexico", "Peru", "Panama"]
     }
+
     if not user:
         st.warning("Ingresa tu usuario para filtrar tareas.")
         return
@@ -175,7 +179,8 @@ def main():
     if review_filter != "All":
         df = df[df["ReviewGroup"] == review_filter]
 
-    if 'start' not in st.session_state: st.session_state['start'] = 0
+    if 'start' not in st.session_state:
+        st.session_state['start'] = 0
     n = len(df)
     colL, colR = st.columns([1, 3])
     with colL:
@@ -212,7 +217,11 @@ def main():
             st.write(f"⏱ Estado: `{status}` (Deadline: {deadline})")
 
             if st.button("Guardar cambios"):
-                updates = {'Completed': 'Yes' if nv else 'No', 'Completion Date': nd.strftime('%Y-%m-%d'), 'Status': status}
+                updates = {
+                    'Completed': 'Yes' if nv else 'No',
+                    'Completion Date': nd.strftime('%Y-%m-%d'),
+                    'Status': status
+                }
                 init_firebase()[0].collection("reconciliation_records").document(sel).update(updates)
                 st.success("Registro actualizado")
 
@@ -231,7 +240,7 @@ def main():
             st.subheader("Comentarios")
             for c in get_comments(sel):
                 ts = c.get('timestamp')
-                txt = ts.strftime('%Y-%m-%d %H:%M') if hasattr(ts,'strftime') else ''
+                txt = ts.strftime('%Y-%m-%d %H:%M') if hasattr(ts, 'strftime') else ''
                 st.markdown(f"**{c.get('user')}** ({txt}): {c.get('text')}")
             nc = st.text_area("Nuevo comentario", key=f"com_{sel}")
             if st.button("Agregar comentario", key=f"addcom_{sel}"):
