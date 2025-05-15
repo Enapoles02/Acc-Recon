@@ -102,12 +102,32 @@ def add_comment(rec_id, user, text):
 # ------------------ Documents ------------------
 @st.cache_data(ttl=60)
 def get_docs(rec_id):
+    """
+    Lista y firma URLs de documentos en Cloud Storage.
+    Añade debug para bucket y secretos.
+    """
+    # Debug: mostrar secretos y bucket utilizado
+    try:
+        bucket_name_secret = st.secrets.get("firebase_bucket")
+        st.write(f"DEBUG secrets['firebase_bucket']: {bucket_name_secret}")
+    except Exception as e:
+        st.write(f"DEBUG error reading secrets: {e}")
     bucket = storage.bucket()
+    st.write(f"DEBUG actual bucket.name: {bucket.name}")
     prefix = f"reconciliation_records/{rec_id}/"
     docs = []
-    for b in bucket.list_blobs(prefix=prefix):
+    try:
+        blobs = bucket.list_blobs(prefix=prefix)
+    except Exception as e:
+        st.error(f"Error listando blobs en bucket {bucket.name}: {e}")
+        return []
+    for b in blobs:
         name = b.name.replace(prefix, "")
-        url = b.generate_signed_url(expiration=datetime.timedelta(hours=1))
+        try:
+            url = b.generate_signed_url(expiration=datetime.timedelta(hours=1))
+        except Exception as e:
+            url = None
+            st.write(f"DEBUG error generando signed_url para {name}: {e}")
         docs.append({"filename": name, "url": url})
     return docs
 
