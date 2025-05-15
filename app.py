@@ -111,8 +111,8 @@ def get_docs(rec_id):
     """
     Lista y firma URLs de documentos en Cloud Storage.
     """
-    bucket_name = st.secrets.get("firebase_bucket")
-    bucket = storage.bucket(bucket_name)
+    # Usa el bucket configurado al iniciar Firebase
+    bucket = storage.bucket()
     prefix = f"reconciliation_records/{rec_id}/"
     blobs = bucket.list_blobs(prefix=prefix)
     docs = []
@@ -123,8 +123,8 @@ def get_docs(rec_id):
     return docs
 
 def upload_doc(rec_id, file, user):
-    bucket_name = st.secrets.get("firebase_bucket")
-    bucket = storage.bucket(bucket_name)
+    # Usa el bucket configurado al iniciar Firebase
+    bucket = storage.bucket()
     blob = bucket.blob(f"reconciliation_records/{rec_id}/{file.name}")
     blob.upload_from_file(file, content_type=file.type)
     db = init_firebase()
