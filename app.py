@@ -21,19 +21,18 @@ def init_firebase():
 def load_index_data():
     db = init_firebase()
     col = db.collection("reconciliation_records")
+    # Tomar un documento de muestra para obtener campos
     sample = next(col.limit(1).stream(), None)
     if not sample:
         return pd.DataFrame()
     keys = sample.to_dict().keys()
-    # Detectar columna de GL Name de forma específica
-    gl_col = next((c for c in keys if c.lower().strip() == "gl account name"), None)
-    if not gl_col:
-        # fallback: cualquier campo que contenga 'gl account'
-        gl_col = next((c for c in keys if "gl account" in c.lower()), None)
-    # Detectar columna Country explícita
-    country_col = next((c for c in keys if c.lower().strip() == "country"), None)
-    if not gl_col or not country_col:
+    # Asignación explícita según encabezados de Excel (columna 4 = 'GL NAME', columna 8 = 'Country')
+    gl_col = "GL NAME"
+    country_col = "Country"
+    # Validar existencia de columnas
+    if gl_col not in keys or country_col not in keys:
         return pd.DataFrame()
+    # Cargar solo campos necesarios para el índice
     try:
         docs = col.select([gl_col, country_col]).stream()
     except Exception:
@@ -41,7 +40,11 @@ def load_index_data():
     recs = []
     for d in docs:
         data = d.to_dict()
-        recs.append({"_id": d.id, "gl_name": data.get(gl_col), "country": data.get(country_col)})
+        recs.append({
+            "_id": d.id,
+            "gl_name": data.get(gl_col),
+            "country": data.get(country_col)
+        })
     return pd.DataFrame(recs)
 
 @st.cache_data(ttl=60)
