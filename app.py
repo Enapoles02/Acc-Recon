@@ -26,7 +26,7 @@ def init_firebase():
 def load_mapping():
     url = "https://raw.githubusercontent.com/Enapoles02/Acc-Recon/main/Mapping.csv"
     df = pd.read_csv(url, dtype=str)
-    df.columns = df.columns.str.strip()
+    df.columns = df.columns.str.strip().str.replace(r"[\r\n]+", "", regex=True)
     df = df.rename(columns={"GL Account": "GL Account", "Group": "ReviewGroup"})
     return df
 
@@ -55,7 +55,7 @@ def load_index_data():
             "country": data.get(country_col)
         })
     df = pd.DataFrame(recs)
-    df.columns = df.columns.str.strip()
+    df.columns = df.columns.str.strip().str.replace(r"[\r\n]+", "", regex=True)
     return df
 
 @st.cache_data(ttl=60)
@@ -138,8 +138,17 @@ def main():
     df = load_index_data()
     map_df = load_mapping()
 
-    df["GL Account"] = df["GL Account"].astype(str).str.strip()
-    map_df["GL Account"] = map_df["GL Account"].astype(str).str.strip()
+    df.columns = df.columns.str.strip().str.replace(r"[\r\n]+", "", regex=True)
+    map_df.columns = map_df.columns.str.strip().str.replace(r"[\r\n]+", "", regex=True)
+
+    if "GL Account" not in df.columns:
+        st.error(f"❌ 'GL Account' no está en columnas: {df.columns.tolist()}")
+        st.stop()
+
+    if "GL Account" not in map_df.columns:
+        st.error(f"❌ 'GL Account' no está en Mapping: {map_df.columns.tolist()}")
+        st.stop()
+
     df = df.merge(map_df, on="GL Account", how="left")
     df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
 
