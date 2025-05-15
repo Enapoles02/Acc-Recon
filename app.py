@@ -25,8 +25,13 @@ def load_index_data():
     if not sample:
         return pd.DataFrame()
     keys = sample.to_dict().keys()
-    gl_col = next((c for c in keys if "gl" in c.lower()), None)
-    country_col = next((c for c in keys if c.lower() == "country"), None)
+    # Detectar columna de GL Name de forma específica
+    gl_col = next((c for c in keys if c.lower().strip() == "gl account name"), None)
+    if not gl_col:
+        # fallback: cualquier campo que contenga 'gl account'
+        gl_col = next((c for c in keys if "gl account" in c.lower()), None)
+    # Detectar columna Country explícita
+    country_col = next((c for c in keys if c.lower().strip() == "country"), None)
     if not gl_col or not country_col:
         return pd.DataFrame()
     try:
