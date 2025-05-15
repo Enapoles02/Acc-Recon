@@ -134,7 +134,7 @@ def main():
     st.markdown("""
     <style>
     /* Botones GL NAME */
-    .stButton>button:not([aria-label="↑"]):not([aria-label="↓"]) {
+    .stButton>button:not([title="arrow"]) {
         height: 80px;
         width: 300px !important;
         white-space: normal;
@@ -142,8 +142,7 @@ def main():
         text-align: center;
     }
     /* Botones flecha */
-    .stButton>button[aria-label="↑"],
-    .stButton>button[aria-label="↓"] {
+    .stButton>button[title="arrow"] {
         height: 40px;
         width: 40px;
         padding: 0;
