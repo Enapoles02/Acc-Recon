@@ -142,7 +142,7 @@ def main():
     }
     </style>
     """, unsafe_allow_html=True)
-    st.title("Dashboard de Reconciliación GL")("Dashboard de Reconciliación GL")
+    st.title("Dashboard de Reconciliación GL")
 
     user = st.sidebar.text_input("Usuario")
     pwd = st.sidebar.text_input("Admin Key", type="password")
