@@ -75,8 +75,9 @@ def main():
     map_df["GL Account"] = map_df["GL Account"].astype(str).str.strip()
 
     st.subheader("🧭 Comparación de Mapping")
-    st.write(f"Total cuentas en Mapping: {map_df['GL Account'].nunique()}")
-    st.write(f"Total cuentas en Firebase: {df['GL Account'].nunique()}")
+    st.write(f"Total cuentas distintas en Mapping: {map_df['GL Account'].nunique()}")
+    st.write(f"Total cuentas distintas en Firebase: {df['GL Account'].nunique()}")
+    st.write(f"Total líneas en Firebase: {len(df)}")
 
     missing = set(df['GL Account'].unique()) - set(map_df['GL Account'].unique())
     if missing:
