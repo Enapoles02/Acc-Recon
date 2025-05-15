@@ -102,7 +102,12 @@ def main():
         if file and st.sidebar.button("Subir a Firestore"):
             upload_data(file)
             st.sidebar.success("Datos cargados correctamente.")
-            st.experimental_rerun()
+            # Limpiar caché de datos e inicializar paginación
+            try:
+                load_index_data.clear()
+            except Exception:
+                pass
+            st.session_state['start'] = 0
 
     # Require user
     if not user:
