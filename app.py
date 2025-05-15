@@ -3,6 +3,7 @@ import pandas as pd
 import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
+from io import BytesIO
 
 # ------------------ Configuración general ------------------
 st.set_page_config(page_title="Reconciliación GL", layout="wide")
@@ -20,16 +21,17 @@ def init_firebase():
         firebase_admin.initialize_app(cred, {"storageBucket": bucket_name})
     return firestore.client(), bucket_name
 
-# ------------------ Cargar Mapping desde Firebase Storage ------------------
+# ------------------ Cargar Mapping desde Firebase ------------------
 @st.cache_data
 def load_mapping():
     _, bucket_name = init_firebase()
     bucket = storage.bucket()
     blob = bucket.blob("Mapping.xlsx")
     data = blob.download_as_bytes()
-    df_map = pd.read_excel(data)
-    df_map.columns = df_map.columns.str.strip()
-    return df_map
+    df = pd.read_excel(BytesIO(data), dtype=str)
+    df.columns = df.columns.str.strip()
+    df = df.rename(columns={"GL Account": "GL Account", "Group": "ReviewGroup"})
+    return df
 
 # ------------------ Funciones de carga ------------------
 @st.cache_data(ttl=300)
@@ -134,15 +136,13 @@ def main():
     deadline_base = datetime.date.today().replace(day=1) + datetime.timedelta(days=30)
     deadline = deadline_base + datetime.timedelta(days=wd_day)
 
-    if is_admin:
-        uploaded_mapping = st.sidebar.file_uploader("Actualizar Mapping.xlsx", type=["xlsx"])
-        if uploaded_mapping:
-            _, bucket_name = init_firebase()
-            bucket = storage.bucket()
-            blob = bucket.blob("Mapping.xlsx")
-            blob.upload_from_file(uploaded_mapping, content_type=uploaded_mapping.type)
-            load_mapping.clear()
-            st.sidebar.success("Mapping actualizado")
+    df = load_index_data()
+    map_df = load_mapping()
+
+    df["GL Account"] = df["GL Account"].astype(str).str.strip()
+    map_df["GL Account"] = map_df["GL Account"].astype(str).str.strip()
+    df = df.merge(map_df, on="GL Account", how="left")
+    df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
 
     mapping = {
         "Paula Sarachaga": ["Argentina", "Chile", "Guatemala"],
@@ -155,21 +155,13 @@ def main():
         st.warning("Ingresa tu usuario para filtrar tareas.")
         return
 
-    df = load_index_data()
-    map_df = load_mapping()
-
-    # --- Asignar ReviewGroup usando GL Account ---
-    df["GL Account"] = df["GL Account"].astype(str).str.strip()
-    map_df["Account"] = map_df["Account"].astype(str).str.strip()
-    df = df.merge(map_df, left_on="GL Account", right_on="Account", how="left")
-    df["ReviewGroup"] = df["GL-ReviewGroup"].fillna("Others")
-
     if df.empty:
         st.error("Sin datos o columnas faltantes.")
         return
 
     allowed = mapping.get(user, [c for c in df['country'].unique() if c not in sum(mapping.values(), [])])
     df = df[df['country'].isin(allowed)]
+
     q = st.sidebar.text_input("Buscar cuenta")
     review_filter = st.sidebar.selectbox("Grupo de revisión", options=["All"] + sorted(df["ReviewGroup"].dropna().unique().tolist()))
 
