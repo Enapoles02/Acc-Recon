@@ -169,7 +169,9 @@ def main():
 
     df = load_index_data()
     map_df = load_mapping()
-    df["ReviewGroup"] = df["account"].map(lambda x: map_df.get("GL-ReviewGroup", {}).get(x, "Others"))
+
+    # ✅ Corrección aplicada aquí
+    df["ReviewGroup"] = df["account"].map(map_df["GL-ReviewGroup"]).fillna("Others")
 
     if df.empty:
         st.error("Sin datos o columnas faltantes.")
@@ -178,7 +180,7 @@ def main():
     allowed = mapping.get(user, [c for c in df['country'].unique() if c not in sum(mapping.values(), [])])
     df = df[df['country'].isin(allowed)]
     q = st.sidebar.text_input("Buscar cuenta")
-    review_filter = st.sidebar.selectbox("Grupo de revisión", options=["All"] + sorted(df["ReviewGroup"].unique().tolist()))
+    review_filter = st.sidebar.selectbox("Grupo de revisión", options=["All"] + sorted(df["ReviewGroup"].dropna().unique().tolist()))
 
     if q:
         df = df[df['gl_name'].str.contains(q, case=False, na=False)]
