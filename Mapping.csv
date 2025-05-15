@@ -1,0 +1,2798 @@
+GL Account,Group
+12001,others
+12009,others
+21051,others
+21059,others
+22021,others
+22029,others
+23001,others
+23009,others
+24001,others
+24009,others
+24011,others
+24019,others
+24031,others
+24039,others
+24041,others
+24049,others
+24051,others
+24059,others
+24061,others
+24069,others
+24211,others
+24219,others
+15021,others
+1526100000,others
+1526200000,others
+1530001000,others
+1530004300,others
+1530005150,others
+101000,others
+101100,others
+101200,others
+102000,others
+151580,others
+101050,209-AR-Others
+105000,209-AR-Others
+111200,209-AR-Others
+102400,others
+102410,others
+102420,others
+141000,others
+141100,others
+141200,others
+161020,others
+162020,others
+162120,others
+161090,others
+162090,others
+133100,others
+133120,others
+133130,others
+133400,others
+133500,others
+139000,others
+139009,others
+132010,others
+132020,others
+132030,others
+166400,others
+133106,others
+133133,others
+133503,others
+151290,others
+167150,others
+166260,others
+41000,400-Equity/General
+43000,others
+44030,others
+44040,400-Equity/General
+44060,400-Equity/General
+56000,400-Equity/General
+56260,others
+0BSRESULT,others
+213000,500-CA/EcoPeriod
+213100,500-CA/EcoPeriod
+213200,500-CA/EcoPeriod
+213300,500-CA/EcoPeriod
+213400,500-CA/EcoPeriod
+213500,500-CA/EcoPeriod
+108030,600-Tax direct
+111058,600-Tax direct
+151480,600-Tax direct
+621001000,600-Tax direct
+629501000,601-deferred Tax
+629504200,601-deferred Tax
+629601000,601-deferred Tax
+629604200,601-deferred Tax
+111000,620-Tax indirect
+111001,620-Tax indirect
+111030,620-Tax indirect
+111350,620-Tax indirect
+111370,620-Tax indirect
+111480,620-Tax indirect
+111490,620-Tax indirect
+111500,620-Tax indirect
+151030,620-Tax indirect
+151045,620-Tax indirect
+151046,620-Tax indirect
+151047,620-Tax indirect
+151200,620-Tax indirect
+151420,620-Tax indirect
+151510,620-Tax indirect
+101400,others
+141400,others
+101410,others
+101430,others
+123020,others
+63290,others
+82100,others
+151170,others
+152010,others
+63020,others
+63040,others
+63280,others
+81020,others
+81190,others
+151180,721-Accruals/Audit
+631501000,750-Prov./General
+631501001,750-Prov./General
+631501002,750-Prov./General
+631501003,750-Prov./General
+631501004,750-Prov./General
+631501300,750-Prov./General
+631501301,750-Prov./General
+631504050,750-Prov./General
+631701000,750-Prov./General
+1010500000,others
+1010900000,others
+1410900000,others
+1610900000,others
+1664400000,others
+1676900000,others
+1010400000,810-SAP Re-Allocation
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+151260,810-SAP Re-Allocation
+1620900000,810-SAP Re-Allocation
+1410000001,820-Re-Classifications
+1526000001,820-Re-Classifications
+153100,911-HR-Accrual-YE
+151470,920-HR-Bonus
+151050,929-HR Others
+151500,929-HR Others
+153080,929-HR Others
+153200,929-HR Others
+153250,929-HR Others
+153270,929-HR Others
+12001,others
+12009,others
+22001,others
+22009,others
+22021,others
+22029,others
+23101,others
+23109,others
+24011,others
+24019,others
+24031,others
+24039,others
+24041,others
+24049,others
+24051,others
+24059,others
+24211,others
+24219,others
+15022,others
+1526100000,others
+1530001000,others
+1530004300,others
+1530005100,others
+1530005150,others
+1530005550,others
+166610,others
+301060,150-Inventory
+101000,others
+101100,others
+101200,others
+102000,others
+151580,others
+101050,209-AR-Others
+111190,209-AR-Others
+111470,209-AR-Others
+102400,others
+102410,others
+102420,others
+141000,others
+141100,others
+141200,others
+1112400000,209-AR-Others
+141060,259-AP-Others
+151172,259-AP-Others
+151520,259-AP-Others
+161020,others
+162020,others
+162120,others
+161060,others
+162060,others
+133100,others
+133210,others
+133500,others
+136200,others
+136300,others
+136400,others
+136500,others
+133105,others
+133215,others
+151290,others
+41000,400-Equity/General
+44040,400-Equity/General
+56000,400-Equity/General
+0BSRESULT,others
+213000,500-CA/EcoPeriod
+213100,500-CA/EcoPeriod
+213200,500-CA/EcoPeriod
+213300,500-CA/EcoPeriod
+213400,500-CA/EcoPeriod
+213500,500-CA/EcoPeriod
+108000,600-Tax direct
+108030,600-Tax direct
+151480,600-Tax direct
+629301000,601-deferred Tax
+629601000,601-deferred Tax
+629604050,601-deferred Tax
+111000,620-Tax indirect
+111300,620-Tax indirect
+111480,620-Tax indirect
+151040,620-Tax indirect
+151200,620-Tax indirect
+151300,620-Tax indirect
+151410,620-Tax indirect
+151510,620-Tax indirect
+151660,620-Tax indirect
+81030,640-Duty/Customs
+101400,others
+141400,others
+161500,others
+162500,others
+101120,others
+101410,others
+101430,others
+123020,others
+63290,others
+151590,others
+152010,others
+63030,others
+63040,others
+63280,others
+81060,others
+151180,721-Accruals/Audit
+631501000,750-Prov./General
+631504050,750-Prov./General
+631701000,750-Prov./General
+631704050,750-Prov./General
+631704200,750-Prov./General
+631704300,750-Prov./General
+631301000,752-Prov./HR Others
+631304050,752-Prov./HR Others
+1010900000,others
+1410900000,others
+1610900000,others
+1010400000,810-SAP Re-Allocation
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+151260,810-SAP Re-Allocation
+1620900000,810-SAP Re-Allocation
+720200000,810-SAP Re-Allocation
+1410000001,820-Re-Classifications
+1410000002,820-Re-Classifications
+1526000001,820-Re-Classifications
+1526000002,820-Re-Classifications
+1526000003,820-Re-Classifications
+1666000001,820-Re-Classifications
+1666000002,820-Re-Classifications
+111180,900-Insurances
+151620,900-Insurances
+153000,910-HR-Accrual-ST
+153100,911-HR-Accrual-YE
+151470,920-HR-Bonus
+111090,929-HR Others
+111450,929-HR Others
+111540,929-HR Others
+111590,929-HR Others
+151050,929-HR Others
+151500,929-HR Others
+153200,929-HR Others
+153250,929-HR Others
+22021,others
+22029,others
+23001,others
+23009,others
+24001,others
+24009,others
+24011,others
+24019,others
+24041,others
+24049,others
+24051,others
+24059,others
+24101,others
+24109,others
+15021,others
+15029,others
+1526100000,others
+1530001000,others
+1530004300,others
+1530005100,others
+1530005150,others
+101000,others
+101200,others
+102000,others
+151580,others
+101050,209-AR-Others
+105000,209-AR-Others
+111470,209-AR-Others
+102400,others
+102410,others
+102420,others
+141000,others
+141100,others
+141200,others
+1112400000,209-AR-Others
+161020,others
+162020,others
+162120,others
+161090,others
+162060,others
+162090,others
+133100,others
+133110,others
+133120,others
+133200,others
+133210,others
+133220,others
+139000,others
+139009,others
+132040,others
+132050,others
+132060,others
+166420,others
+151290,others
+41000,400-Equity/General
+43000,others
+44030,others
+44040,400-Equity/General
+44060,400-Equity/General
+56000,400-Equity/General
+56200,others
+56260,others
+57100,others
+0BSRESULT,others
+213000,500-CA/EcoPeriod
+213100,500-CA/EcoPeriod
+213300,500-CA/EcoPeriod
+213400,500-CA/EcoPeriod
+213500,500-CA/EcoPeriod
+214100,501-CA/Assets
+621001000,600-Tax direct
+623001000,600-Tax direct
+62600,600-Tax direct
+629301000,601-deferred Tax
+629501000,601-deferred Tax
+629601000,601-deferred Tax
+111000,620-Tax indirect
+111050,620-Tax indirect
+151030,620-Tax indirect
+151200,620-Tax indirect
+81030,640-Duty/Customs
+101400,others
+141400,others
+161500,others
+162500,others
+101430,others
+123020,others
+63290,others
+152010,others
+63020,others
+63030,others
+63040,others
+63280,others
+81060,others
+151180,721-Accruals/Audit
+631701000,750-Prov./General
+631704050,750-Prov./General
+631101000,752-Prov./HR Others
+1010500000,others
+1010900000,others
+1410900000,others
+1610900000,others
+720390000,others
+1010400000,810-SAP Re-Allocation
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+151260,810-SAP Re-Allocation
+1620400000,810-SAP Re-Allocation
+1620900000,810-SAP Re-Allocation
+1526000001,820-Re-Classifications
+1526000002,820-Re-Classifications
+1526000003,820-Re-Classifications
+1526000004,820-Re-Classifications
+111180,900-Insurances
+151620,900-Insurances
+153000,910-HR-Accrual-ST
+153100,911-HR-Accrual-YE
+151470,920-HR-Bonus
+111420,929-HR Others
+151050,929-HR Others
+151500,929-HR Others
+153200,929-HR Others
+153270,929-HR Others
+22001,others
+22009,others
+24001,others
+24009,others
+24041,others
+24049,others
+24051,others
+24059,others
+24061,others
+24069,others
+101000,others
+101200,others
+102000,others
+151580,others
+101050,209-AR-Others
+111470,209-AR-Others
+102400,others
+102410,others
+141000,others
+141100,others
+141200,others
+1112400000,209-AR-Others
+161020,others
+162020,others
+162120,others
+162060,others
+133500,others
+133600,others
+133610,others
+139000,others
+139009,others
+132500,others
+132501,others
+166420,others
+133506,others
+133606,others
+133616,others
+151290,others
+41000,400-Equity/General
+44040,400-Equity/General
+44060,400-Equity/General
+46020,others
+0BSRESULT,others
+213000,500-CA/EcoPeriod
+213100,500-CA/EcoPeriod
+213400,500-CA/EcoPeriod
+151171,599-CA/General
+111057,600-Tax direct
+151480,600-Tax direct
+111001,620-Tax indirect
+111030,620-Tax indirect
+81030,640-Duty/Customs
+101400,others
+141400,others
+161500,others
+162500,others
+101420,others
+141420,others
+101430,others
+123020,others
+63290,others
+152010,others
+63040,others
+63280,others
+81060,others
+631701000,750-Prov./General
+631704050,750-Prov./General
+631704200,750-Prov./General
+1010500000,others
+1010900000,others
+1410900000,others
+1610900000,others
+1010400000,810-SAP Re-Allocation
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+151260,810-SAP Re-Allocation
+1620900000,810-SAP Re-Allocation
+111180,900-Insurances
+153000,910-HR-Accrual-ST
+153050,910-HR-Accrual-ST
+151050,929-HR Others
+153200,929-HR Others
+12001,others
+12009,others
+21021,others
+21041,others
+21049,others
+22001,others
+22009,others
+22021,others
+22029,others
+23001,others
+24001,others
+24009,others
+24011,others
+24019,others
+24041,others
+24049,others
+24051,others
+24059,others
+24061,others
+24069,others
+24071,others
+24079,others
+24201,others
+24209,others
+25001,others
+15021,others
+1526100000,others
+1526200000,others
+1530001000,others
+1530004300,others
+1530005100,others
+1530005150,others
+166610,others
+101000,others
+101100,others
+101200,others
+102000,others
+151580,others
+101050,209-AR-Others
+111200,209-AR-Others
+151230,209-AR-Others
+102400,others
+102410,others
+102420,others
+141000,others
+141100,others
+141200,others
+1112400000,209-AR-Others
+111260,259-AP-Others
+111580,259-AP-Others
+151520,259-AP-Others
+82080,259-AP-Others
+161020,others
+162020,others
+162120,others
+161060,others
+162060,others
+133010,others
+133050,others
+133060,others
+133070,others
+133080,others
+133700,others
+139000,others
+139009,others
+166400,others
+151290,others
+167150,others
+166200,others
+166260,others
+41000,400-Equity/General
+44000,others
+44040,400-Equity/General
+44060,400-Equity/General
+44140,400-Equity/General
+44150,400-Equity/General
+44160,400-Equity/General
+56000,400-Equity/General
+56200,others
+56260,others
+0BSRESULT,others
+399991,others
+399994,others
+399995,others
+213000,500-CA/EcoPeriod
+213100,500-CA/EcoPeriod
+213300,500-CA/EcoPeriod
+213400,500-CA/EcoPeriod
+108030,600-Tax direct
+111051,600-Tax direct
+151480,600-Tax direct
+629501000,601-deferred Tax
+629504200,601-deferred Tax
+629601000,601-deferred Tax
+629604050,601-deferred Tax
+111001,620-Tax indirect
+111002,620-Tax indirect
+111030,620-Tax indirect
+111050,620-Tax indirect
+111302,620-Tax indirect
+111490,620-Tax indirect
+151030,620-Tax indirect
+151043,620-Tax indirect
+151047,620-Tax indirect
+151202,620-Tax indirect
+81030,640-Duty/Customs
+101400,others
+141400,others
+161500,others
+162500,others
+101420,others
+141420,others
+101430,others
+123020,others
+63290,others
+151170,others
+151250,others
+152010,others
+63020,others
+63040,others
+63280,others
+81020,others
+81060,others
+82020,others
+151180,721-Accruals/Audit
+631701000,750-Prov./General
+631704050,750-Prov./General
+631704200,750-Prov./General
+631704300,750-Prov./General
+606001000,751-Prov./HR Ext. Expertise
+606004300,751-Prov./HR Ext. Expertise
+606005100,751-Prov./HR Ext. Expertise
+606005150,751-Prov./HR Ext. Expertise
+631101000,752-Prov./HR Others
+1010500000,others
+1010900000,others
+1410900000,others
+1610900000,others
+720390000,others
+1554401000,others
+1554403200,others
+2829001000,others
+1010400000,810-SAP Re-Allocation
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+151260,810-SAP Re-Allocation
+1620900000,810-SAP Re-Allocation
+720200000,810-SAP Re-Allocation
+1410000005,820-Re-Classifications
+1526000001,820-Re-Classifications
+1526000002,820-Re-Classifications
+1526000003,820-Re-Classifications
+1526000004,820-Re-Classifications
+1666000001,820-Re-Classifications
+1666000002,820-Re-Classifications
+1666000003,820-Re-Classifications
+1666000004,820-Re-Classifications
+111180,900-Insurances
+151620,900-Insurances
+153000,910-HR-Accrual-ST
+153050,910-HR-Accrual-ST
+153060,911-HR-Accrual-YE
+153150,911-HR-Accrual-YE
+151470,920-HR-Bonus
+153070,920-HR-Bonus
+111420,929-HR Others
+111440,929-HR Others
+151050,929-HR Others
+151190,929-HR Others
+151240,929-HR Others
+151500,929-HR Others
+153260,929-HR Others
+153270,929-HR Others
+139001,others
+21051,others
+21059,others
+22021,others
+22029,others
+23001,others
+23009,others
+24011,others
+24019,others
+24031,others
+24039,others
+24041,others
+24049,others
+24051,others
+24059,others
+24061,others
+24069,others
+15021,others
+1526100000,others
+1530001000,others
+1530004300,others
+1530005100,others
+1530005150,others
+1530005550,others
+101000,others
+101100,others
+101200,others
+102000,others
+151580,others
+101050,209-AR-Others
+102400,others
+102410,others
+141000,others
+141100,others
+141200,others
+111580,259-AP-Others
+161020,others
+162020,others
+162120,others
+161090,others
+162090,others
+133300,others
+133400,others
+132010,others
+132020,others
+167600,others
+133302,others
+133403,others
+151290,others
+41000,400-Equity/General
+44040,400-Equity/General
+44060,400-Equity/General
+56260,others
+0BSRESULT,others
+213000,500-CA/EcoPeriod
+213100,500-CA/EcoPeriod
+213300,500-CA/EcoPeriod
+213400,500-CA/EcoPeriod
+133900,others
+161530,others
+151480,600-Tax direct
+621001000,600-Tax direct
+111000,620-Tax indirect
+111030,620-Tax indirect
+151040,620-Tax indirect
+151200,620-Tax indirect
+81030,640-Duty/Customs
+101400,others
+141400,others
+161500,others
+162500,others
+101420,others
+152010,others
+63030,others
+63040,others
+63280,others
+81020,others
+81060,others
+631701000,750-Prov./General
+631704050,750-Prov./General
+631301000,752-Prov./HR Others
+631304050,752-Prov./HR Others
+1410900000,others
+1610900000,others
+1010400000,810-SAP Re-Allocation
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+151260,810-SAP Re-Allocation
+1620400000,810-SAP Re-Allocation
+1620900000,810-SAP Re-Allocation
+1526000001,820-Re-Classifications
+1526000002,820-Re-Classifications
+153050,910-HR-Accrual-ST
+153060,911-HR-Accrual-YE
+151470,920-HR-Bonus
+111090,929-HR Others
+151050,929-HR Others
+153250,929-HR Others
+12001,others
+12009,others
+21031,others
+21039,others
+22001,others
+22009,others
+22021,others
+22029,others
+24041,others
+24049,others
+24051,others
+24059,others
+15021,others
+1526200000,others
+1530001000,others
+1530004300,others
+1530005150,others
+101000,others
+101100,others
+101200,others
+102000,others
+101050,209-AR-Others
+102400,others
+102410,others
+141000,others
+141100,others
+141200,others
+111580,259-AP-Others
+1511700000,259-AP-Others
+167500,259-AP-Others
+161020,others
+162020,others
+162120,others
+161090,others
+162090,others
+133100,others
+133110,others
+133200,others
+133210,others
+133300,others
+133400,others
+133410,others
+133610,others
+133700,others
+132999,others
+133405,others
+151290,others
+41000,400-Equity/General
+43000,others
+44000,others
+44040,400-Equity/General
+44060,400-Equity/General
+56260,others
+0BSRESULT,others
+399992,others
+399993,others
+399994,others
+399995,others
+151480,600-Tax direct
+629501000,601-deferred Tax
+629501300,601-deferred Tax
+629504050,601-deferred Tax
+629601000,601-deferred Tax
+629601300,601-deferred Tax
+111000,620-Tax indirect
+151030,620-Tax indirect
+151040,620-Tax indirect
+151200,620-Tax indirect
+101400,others
+141400,others
+161500,others
+162500,others
+101430,others
+123020,others
+63290,others
+82100,others
+151170,others
+152010,others
+63020,others
+63030,others
+63280,others
+81020,others
+81060,others
+81190,others
+631701000,750-Prov./General
+631704050,750-Prov./General
+1010500000,others
+1010900000,others
+1410900000,others
+1610900000,others
+1665900000,others
+720390000,others
+1010400000,810-SAP Re-Allocation
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+151260,810-SAP Re-Allocation
+1620900000,810-SAP Re-Allocation
+720200000,810-SAP Re-Allocation
+1553901000,820-Re-Classifications
+153000,910-HR-Accrual-ST
+153050,910-HR-Accrual-ST
+153150,911-HR-Accrual-YE
+151470,920-HR-Bonus
+153070,920-HR-Bonus
+111540,929-HR Others
+151050,929-HR Others
+151240,929-HR Others
+151500,929-HR Others
+21051,others
+21059,others
+23001,others
+23009,others
+24041,others
+24049,others
+24051,others
+24059,others
+101000,others
+101200,others
+101050,209-AR-Others
+111470,209-AR-Others
+102410,others
+102420,others
+141000,others
+141100,others
+141200,others
+111580,259-AP-Others
+151520,259-AP-Others
+161020,others
+162020,others
+162120,others
+133010,others
+133080,others
+133200,others
+139000,others
+139009,others
+132008,others
+133011,others
+133082,others
+166260,others
+44060,400-Equity/General
+0BSRESULT,others
+399992,others
+399994,others
+399995,others
+108030,600-Tax direct
+151480,600-Tax direct
+621001000,600-Tax direct
+621004050,600-Tax direct
+629301000,601-deferred Tax
+629501000,601-deferred Tax
+111000,620-Tax indirect
+111300,620-Tax indirect
+151030,620-Tax indirect
+151040,620-Tax indirect
+151200,620-Tax indirect
+81030,640-Duty/Customs
+101400,others
+141400,others
+161500,others
+162500,others
+151170,others
+152010,others
+63280,others
+81060,others
+81190,others
+151180,721-Accruals/Audit
+656001000,750-Prov./General
+656004050,750-Prov./General
+656011000,750-Prov./General
+656014050,750-Prov./General
+1010500000,others
+1010900000,others
+1410900000,others
+1610900000,others
+1010400000,810-SAP Re-Allocation
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+151260,810-SAP Re-Allocation
+1620900000,810-SAP Re-Allocation
+720200000,810-SAP Re-Allocation
+153000,910-HR-Accrual-ST
+153050,910-HR-Accrual-ST
+153100,911-HR-Accrual-YE
+153150,911-HR-Accrual-YE
+151470,920-HR-Bonus
+111420,929-HR Others
+111450,929-HR Others
+151050,929-HR Others
+151064,929-HR Others
+151500,929-HR Others
+153200,929-HR Others
+153260,929-HR Others
+139001,others
+12001,others
+12009,others
+22001,others
+22009,others
+22021,others
+22029,others
+23101,others
+23109,others
+24031,others
+24039,others
+24041,others
+24049,others
+24051,others
+24059,others
+25011,others
+15021,others
+1526100000,others
+1530001000,others
+1530004300,others
+1530005150,others
+1530005550,others
+166610,others
+101000,others
+101200,others
+102000,others
+111470,209-AR-Others
+151230,209-AR-Others
+38001,209-AR-Others
+102400,others
+102410,others
+102420,others
+141000,others
+141200,others
+161020,others
+162020,others
+162120,others
+222060,others
+161060,others
+161070,others
+161090,others
+162060,others
+162090,others
+133030,others
+133040,others
+133060,others
+133070,others
+151290,others
+133000,others
+133010,others
+41000,400-Equity/General
+44040,400-Equity/General
+44060,400-Equity/General
+44140,400-Equity/General
+44150,400-Equity/General
+44160,400-Equity/General
+44170,400-Equity/General
+44191,400-Equity/General
+56000,400-Equity/General
+56100,400-Equity/General
+56250,400-Equity/General
+56261,400-Equity/General
+0BSRESULT,others
+213000,500-CA/EcoPeriod
+213100,500-CA/EcoPeriod
+213200,500-CA/EcoPeriod
+221021,599-CA/General
+221023,599-CA/General
+221024,599-CA/General
+221031,599-CA/General
+621001000,600-Tax direct
+621004050,600-Tax direct
+621004300,600-Tax direct
+629301000,601-deferred Tax
+629501000,601-deferred Tax
+629511000,601-deferred Tax
+629601000,601-deferred Tax
+111000,620-Tax indirect
+111300,620-Tax indirect
+111350,620-Tax indirect
+151200,620-Tax indirect
+151510,620-Tax indirect
+112020,640-Duty/Customs
+81030,640-Duty/Customs
+81110,640-Duty/Customs
+101400,others
+141400,others
+161500,others
+162500,others
+101120,others
+101430,others
+123020,others
+63290,others
+82100,others
+151170,others
+63030,others
+63040,others
+63280,others
+81020,others
+81060,others
+81090,others
+81150,others
+81190,others
+82040,others
+151180,721-Accruals/Audit
+631701000,750-Prov./General
+631704050,750-Prov./General
+631704200,750-Prov./General
+631704300,750-Prov./General
+133030,others
+133070,others
+135000,others
+151290,others
+133010,others
+133000,others
+133009,others
+133030,others
+133050,others
+135020,others
+135070,others
+135080,others
+133004,others
+133024,others
+133034,others
+133030,others
+133050,others
+133024,others
+133031,others
+133034,others
+151290,others
+1010900000,others
+1410900000,others
+1610900000,others
+1665900000,others
+720390000,others
+1554401000,others
+1554403200,others
+101001,810-SAP Re-Allocation
+1010400000,810-SAP Re-Allocation
+1010410000,810-SAP Re-Allocation
+101110,810-SAP Re-Allocation
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+141110,810-SAP Re-Allocation
+151260,810-SAP Re-Allocation
+1620900000,810-SAP Re-Allocation
+1526000001,820-Re-Classifications
+1526000002,820-Re-Classifications
+1526000003,820-Re-Classifications
+1526000004,820-Re-Classifications
+1526000005,820-Re-Classifications
+1666000001,820-Re-Classifications
+1666000002,820-Re-Classifications
+1666000003,820-Re-Classifications
+1666000004,820-Re-Classifications
+380010000,820-Re-Classifications
+380010001,820-Re-Classifications
+380010002,820-Re-Classifications
+380010003,820-Re-Classifications
+380010005,others
+151620,900-Insurances
+153060,911-HR-Accrual-YE
+153100,911-HR-Accrual-YE
+151470,920-HR-Bonus
+153070,920-HR-Bonus
+151570,929-HR Others
+153080,929-HR Others
+153260,929-HR Others
+153270,929-HR Others
+12001,others
+12009,others
+13011,others
+13019,others
+16001,others
+16009,others
+21011,others
+21019,others
+21031,others
+21039,others
+21041,others
+21049,others
+21051,others
+21059,others
+22001,others
+22009,others
+22021,others
+22029,others
+23101,others
+23109,others
+24001,others
+24009,others
+24031,others
+24039,others
+24041,others
+24049,others
+24051,others
+24059,others
+24101,others
+24109,others
+24201,others
+24209,others
+24211,others
+24219,others
+25001,others
+14021,others
+15021,others
+31001,others
+1526100000,others
+1530001000,others
+1530004300,others
+1530005100,others
+1530005150,others
+1530005550,others
+166610,others
+301110,150-Inventory
+101000,others
+101100,others
+101200,others
+102000,others
+151580,others
+101050,209-AR-Others
+111202,209-AR-Others
+111470,209-AR-Others
+102400,others
+102410,others
+102420,others
+141000,others
+141100,others
+141200,others
+141301,259-AP-Others
+141302,259-AP-Others
+151174,259-AP-Others
+162300,259-AP-Others
+167500,259-AP-Others
+161020,others
+162020,others
+162120,others
+161060,others
+161080,others
+162060,others
+133010,others
+133030,others
+133031,others
+133034,others
+151290,others
+166400,others
+133011,others
+133013,others
+133015,others
+133025,others
+133045,others
+133030,others
+1671410000,others
+167150,others
+167151,others
+167152,others
+167153,others
+167155,others
+167160,others
+167161,others
+166200,others
+166201,others
+166202,others
+166209,others
+41000,400-Equity/General
+43000,others
+44040,400-Equity/General
+44060,400-Equity/General
+44140,400-Equity/General
+44150,400-Equity/General
+44160,400-Equity/General
+44190,others
+56000,400-Equity/General
+56500,others
+0BSRESULT,others
+213000,500-CA/EcoPeriod
+213100,500-CA/EcoPeriod
+213200,500-CA/EcoPeriod
+211000,501-CA/Assets
+214000,501-CA/Assets
+133900,others
+213210,others
+221011,522-CA/Fairs
+151171,599-CA/General
+221240,599-CA/General
+221530,599-CA/General
+108000,600-Tax direct
+151502,600-Tax direct
+621001000,600-Tax direct
+621004300,600-Tax direct
+621011000,600-Tax direct
+621014300,600-Tax direct
+62600,600-Tax direct
+629301000,601-deferred Tax
+629311000,601-deferred Tax
+629501000,601-deferred Tax
+629511000,601-deferred Tax
+629521000,601-deferred Tax
+111300,620-Tax indirect
+151040,620-Tax indirect
+112020,640-Duty/Customs
+151161,640-Duty/Customs
+81031,640-Duty/Customs
+81110,640-Duty/Customs
+101400,others
+141400,others
+161500,others
+162500,others
+101410,others
+101420,others
+141420,others
+161510,others
+101430,others
+123020,others
+63290,others
+152010,others
+63020,others
+63040,others
+63060,others
+63070,others
+63280,others
+81020,others
+81060,others
+81064,others
+81066,others
+81150,others
+81170,others
+81190,others
+151180,721-Accruals/Audit
+153254,721-Accruals/Audit
+631501000,750-Prov./General
+631504050,750-Prov./General
+631504200,750-Prov./General
+631701000,750-Prov./General
+631704050,750-Prov./General
+631704200,750-Prov./General
+631704300,750-Prov./General
+631711000,750-Prov./General
+632001000,750-Prov./General
+632001004,others
+632004050,750-Prov./General
+632011000,750-Prov./General
+632011004,750-Prov./General
+632014300,750-Prov./General
+632021000,750-Prov./General
+632021004,750-Prov./General
+632024300,750-Prov./General
+632031000,750-Prov./General
+632031004,750-Prov./General
+632034200,others
+632034300,750-Prov./General
+632041000,750-Prov./General
+632044300,750-Prov./General
+632051000,750-Prov./General
+632051004,750-Prov./General
+632301000,750-Prov./General
+632304300,750-Prov./General
+650501000,750-Prov./General
+659501000,750-Prov./General
+133031,others
+133034,others
+151290,others
+1010900000,others
+1410900000,others
+1610900000,others
+720390000,others
+1554401000,others
+1554403200,others
+2829001000,others
+2829003200,others
+1010400000,810-SAP Re-Allocation
+101110,810-SAP Re-Allocation
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+151260,810-SAP Re-Allocation
+1620900000,810-SAP Re-Allocation
+1112020001,820-Re-Classifications
+1112020002,820-Re-Classifications
+1112020003,820-Re-Classifications
+1112020004,820-Re-Classifications
+1112020005,820-Re-Classifications
+1230100000,820-Re-Classifications
+1230100001,820-Re-Classifications
+1230100002,820-Re-Classifications
+1230100003,820-Re-Classifications
+1510200001,820-Re-Classifications
+1510200005,820-Re-Classifications
+1526000001,820-Re-Classifications
+1526000002,820-Re-Classifications
+1526000003,820-Re-Classifications
+1526000004,820-Re-Classifications
+1526000005,820-Re-Classifications
+1666000001,820-Re-Classifications
+1666000002,820-Re-Classifications
+1666000003,820-Re-Classifications
+1666000004,820-Re-Classifications
+1666000005,820-Re-Classifications
+1671510001,820-Re-Classifications
+1675000003,820-Re-Classifications
+111180,900-Insurances
+151143,900-Insurances
+151620,900-Insurances
+153060,911-HR-Accrual-YE
+153100,911-HR-Accrual-YE
+151122,920-HR-Bonus
+151129,920-HR-Bonus
+111152,929-HR Others
+111153,929-HR Others
+111205,929-HR Others
+123000,929-HR Others
+123010,929-HR Others
+151050,929-HR Others
+151175,929-HR Others
+151178,929-HR Others
+151240,929-HR Others
+151501,929-HR Others
+151503,929-HR Others
+151504,929-HR Others
+151505,929-HR Others
+151540,929-HR Others
+153252,929-HR Others
+153255,929-HR Others
+153256,929-HR Others
+153258,929-HR Others
+153259,929-HR Others
+153270,929-HR Others
+12001,others
+12009,others
+21011,others
+21019,others
+24001,others
+24009,others
+24031,others
+24039,others
+24041,others
+24049,others
+101000,others
+111202,209-AR-Others
+102400,others
+102410,others
+102420,others
+141000,others
+141302,259-AP-Others
+161020,others
+162020,others
+162120,others
+162060,others
+133030,others
+133034,others
+151290,others
+167153,others
+166202,others
+41000,400-Equity/General
+43000,others
+44060,400-Equity/General
+0BSRESULT,others
+133900,others
+108000,600-Tax direct
+621001000,600-Tax direct
+621011000,600-Tax direct
+629301000,601-deferred Tax
+629401000,601-deferred Tax
+629501000,601-deferred Tax
+629501300,601-deferred Tax
+629511000,601-deferred Tax
+629514050,601-deferred Tax
+629521000,601-deferred Tax
+629524200,601-deferred Tax
+629601000,601-deferred Tax
+629601300,601-deferred Tax
+101400,others
+141400,others
+162500,others
+141420,others
+63280,others
+153254,721-Accruals/Audit
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+153060,911-HR-Accrual-YE
+153100,911-HR-Accrual-YE
+151240,929-HR Others
+151540,929-HR Others
+151550,929-HR Others
+153252,929-HR Others
+153256,929-HR Others
+153270,929-HR Others
+12001,others
+12009,others
+14001,others
+14009,others
+16001,others
+16009,others
+17001,others
+18011,others
+18019,others
+21011,others
+21019,others
+21021,others
+22001,others
+22009,others
+24031,others
+24039,others
+24041,others
+24049,others
+24051,others
+24059,others
+25001,others
+15021,others
+31001,others
+101050,209-AR-Others
+111202,209-AR-Others
+111470,209-AR-Others
+102400,others
+102420,others
+141000,others
+141100,others
+111580,259-AP-Others
+141301,259-AP-Others
+141302,259-AP-Others
+151174,259-AP-Others
+161020,others
+162020,others
+162120,others
+135020,others
+604021000,751-Prov./HR Ext. Expertise
+604031000,751-Prov./HR Ext. Expertise
+605001000,751-Prov./HR Ext. Expertise
+605011000,751-Prov./HR Ext. Expertise
+605021000,751-Prov./HR Ext. Expertise
+605024300,751-Prov./HR Ext. Expertise
+167600,others
+605025100,751-Prov./HR Ext. Expertise
+605025150,751-Prov./HR Ext. Expertise
+605025250,751-Prov./HR Ext. Expertise
+605031000,751-Prov./HR Ext. Expertise
+605501000,751-Prov./HR Ext. Expertise
+605521000,751-Prov./HR Ext. Expertise
+605524300,751-Prov./HR Ext. Expertise
+605525200,751-Prov./HR Ext. Expertise
+605525250,751-Prov./HR Ext. Expertise
+605525500,751-Prov./HR Ext. Expertise
+167150,others
+167153,others
+166200,others
+166209,others
+41000,400-Equity/General
+43000,others
+44040,400-Equity/General
+44060,400-Equity/General
+56200,others
+56250,400-Equity/General
+56260,others
+56280,others
+0BSRESULT,others
+399991,others
+399992,others
+399993,others
+211000,501-CA/Assets
+250000,others
+221240,599-CA/General
+108000,600-Tax direct
+151502,600-Tax direct
+621001000,600-Tax direct
+621004050,600-Tax direct
+621004300,600-Tax direct
+621011000,600-Tax direct
+62600,600-Tax direct
+629301000,601-deferred Tax
+629301300,601-deferred Tax
+629304200,601-deferred Tax
+629321000,601-deferred Tax
+629324200,601-deferred Tax
+629401000,601-deferred Tax
+629401300,601-deferred Tax
+151040,620-Tax indirect
+101410,others
+141410,others
+161510,others
+162510,others
+63040,others
+63070,others
+63280,others
+81020,others
+81060,others
+81066,others
+81150,others
+81170,others
+151180,721-Accruals/Audit
+153254,721-Accruals/Audit
+631501000,750-Prov./General
+631504050,750-Prov./General
+631504300,750-Prov./General
+631701000,750-Prov./General
+631704300,750-Prov./General
+656001000,750-Prov./General
+1410900000,others
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+1620900000,810-SAP Re-Allocation
+104001000,820-Re-Classifications
+151143,900-Insurances
+153050,910-HR-Accrual-ST
+153060,911-HR-Accrual-YE
+151122,920-HR-Bonus
+151129,920-HR-Bonus
+111205,929-HR Others
+151090,929-HR Others
+151178,929-HR Others
+151240,929-HR Others
+151504,929-HR Others
+151505,929-HR Others
+153080,929-HR Others
+153252,929-HR Others
+153255,929-HR Others
+153256,929-HR Others
+153259,929-HR Others
+153260,929-HR Others
+153270,929-HR Others
+21011,others
+21019,others
+21021,others
+21031,others
+21039,others
+22001,others
+22009,others
+22021,others
+22029,others
+24001,others
+24009,others
+24031,others
+24039,others
+24041,others
+24049,others
+24051,others
+24059,others
+24201,others
+24209,others
+25001,others
+1526100000,others
+1530001000,others
+1530004300,others
+1530005100,others
+1530005150,others
+301120,150-Inventory
+101000,others
+101100,others
+151580,others
+111202,209-AR-Others
+111470,209-AR-Others
+102400,others
+102410,others
+102420,others
+141000,others
+141100,others
+141301,259-AP-Others
+141302,259-AP-Others
+161020,others
+162020,others
+162120,others
+161060,others
+162060,others
+605531000,751-Prov./HR Ext. Expertise
+606001000,751-Prov./HR Ext. Expertise
+606021000,751-Prov./HR Ext. Expertise
+631101000,752-Prov./HR Others
+631104300,752-Prov./HR Others
+606101000,751-Prov./HR Ext. Expertise
+631101000,752-Prov./HR Others
+133410,others
+133061,others
+133071,others
+606105250,751-Prov./HR Ext. Expertise
+167150,others
+167153,others
+166200,others
+166209,others
+44060,400-Equity/General
+0BSRESULT,others
+211000,501-CA/Assets
+151177,503-CA/HR
+151502,600-Tax direct
+621001000,600-Tax direct
+621004050,600-Tax direct
+621011000,600-Tax direct
+621014050,600-Tax direct
+62600,600-Tax direct
+151040,620-Tax indirect
+62910,620-Tax indirect
+101400,others
+141400,others
+161500,others
+162500,others
+101410,others
+101420,others
+141410,others
+161510,others
+162510,others
+152010,others
+63070,others
+63280,others
+81020,others
+81060,others
+81066,others
+81150,others
+81170,others
+153254,721-Accruals/Audit
+631701000,750-Prov./General
+631701002,750-Prov./General
+631704050,750-Prov./General
+631704300,750-Prov./General
+631711000,750-Prov./General
+631714050,750-Prov./General
+631714200,others
+631714300,750-Prov./General
+1010400000,810-SAP Re-Allocation
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+151260,810-SAP Re-Allocation
+1620900000,810-SAP Re-Allocation
+1410000005,820-Re-Classifications
+1526000001,820-Re-Classifications
+1526000002,820-Re-Classifications
+1526000003,820-Re-Classifications
+1526000004,820-Re-Classifications
+1526000005,820-Re-Classifications
+151143,900-Insurances
+151620,900-Insurances
+153050,910-HR-Accrual-ST
+153060,911-HR-Accrual-YE
+151122,920-HR-Bonus
+151129,920-HR-Bonus
+111205,929-HR Others
+151050,929-HR Others
+151178,929-HR Others
+151240,929-HR Others
+151504,929-HR Others
+151505,929-HR Others
+153252,929-HR Others
+153255,929-HR Others
+153256,929-HR Others
+153259,929-HR Others
+153270,929-HR Others
+21011,others
+21019,others
+21031,others
+22001,others
+22009,others
+22021,others
+22029,others
+24001,others
+24009,others
+24031,others
+24039,others
+24041,others
+24049,others
+24051,others
+24059,others
+24201,others
+24209,others
+1526100000,others
+1530001000,others
+1530004300,others
+1530005150,others
+101000,others
+101100,others
+151580,others
+111470,209-AR-Others
+102400,others
+102410,others
+102420,others
+141000,others
+141100,others
+141302,259-AP-Others
+161020,others
+162020,others
+162120,others
+161060,others
+162060,others
+133413,others
+133011,others
+133013,others
+133029,others
+133039,others
+133047,others
+133049,others
+133059,others
+167150,others
+167153,others
+166200,others
+166209,others
+44060,400-Equity/General
+0BSRESULT,others
+211000,501-CA/Assets
+221530,599-CA/General
+151502,600-Tax direct
+621001000,600-Tax direct
+621004050,600-Tax direct
+621011000,600-Tax direct
+621014050,600-Tax direct
+101400,others
+141400,others
+161500,others
+162500,others
+101410,others
+101420,others
+141410,others
+141420,others
+161510,others
+162510,others
+152010,others
+63060,others
+63070,others
+63280,others
+81020,others
+81060,others
+81066,others
+81150,others
+81190,others
+153254,721-Accruals/Audit
+631701000,750-Prov./General
+631711000,750-Prov./General
+631714050,750-Prov./General
+1410900000,others
+1010400000,810-SAP Re-Allocation
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+151260,810-SAP Re-Allocation
+1620900000,810-SAP Re-Allocation
+1410000005,820-Re-Classifications
+1526000001,820-Re-Classifications
+1526000002,820-Re-Classifications
+1526000003,820-Re-Classifications
+1526000004,820-Re-Classifications
+1526000005,820-Re-Classifications
+153050,910-HR-Accrual-ST
+153060,911-HR-Accrual-YE
+151122,920-HR-Bonus
+151129,920-HR-Bonus
+111205,929-HR Others
+151050,929-HR Others
+151240,929-HR Others
+151504,929-HR Others
+153252,929-HR Others
+153255,929-HR Others
+153256,929-HR Others
+153259,929-HR Others
+153270,929-HR Others
+111470,209-AR-Others
+102420,others
+141000,others
+141302,259-AP-Others
+151174,259-AP-Others
+151520,259-AP-Others
+162020,others
+162120,others
+133011,others
+133013,others
+133019,others
+133039,others
+133059,others
+133011,others
+133013,others
+167150,others
+167153,others
+166200,others
+166209,others
+44060,400-Equity/General
+0BSRESULT,others
+211000,501-CA/Assets
+133900,others
+221240,599-CA/General
+108000,600-Tax direct
+621004050,600-Tax direct
+621014050,600-Tax direct
+62600,600-Tax direct
+629501000,601-deferred Tax
+629501300,601-deferred Tax
+629511000,601-deferred Tax
+629521000,601-deferred Tax
+629524050,601-deferred Tax
+629601000,601-deferred Tax
+629601300,601-deferred Tax
+141410,others
+63280,others
+81066,others
+153254,721-Accruals/Audit
+153050,910-HR-Accrual-ST
+153060,911-HR-Accrual-YE
+151129,920-HR-Bonus
+151240,929-HR Others
+151504,929-HR Others
+153252,929-HR Others
+153255,929-HR Others
+153256,929-HR Others
+153270,929-HR Others
+24001,others
+24009,others
+24031,others
+24039,others
+24101,others
+24109,others
+25001,others
+1526100000,others
+1530001000,others
+1530004300,others
+1530005150,others
+111470,209-AR-Others
+102400,others
+102420,others
+141000,others
+141302,259-AP-Others
+167500,259-AP-Others
+162020,others
+162120,others
+133047,others
+133011,others
+133013,others
+133039,others
+133013,others
+167150,others
+167153,others
+166200,others
+166209,others
+44060,400-Equity/General
+56500,others
+0BSRESULT,others
+211000,501-CA/Assets
+221240,599-CA/General
+108000,600-Tax direct
+151502,600-Tax direct
+621004050,600-Tax direct
+621014050,600-Tax direct
+629501000,601-deferred Tax
+629501300,601-deferred Tax
+629511000,601-deferred Tax
+629521000,601-deferred Tax
+629524050,601-deferred Tax
+629601300,601-deferred Tax
+63040,others
+63280,others
+81060,others
+81150,others
+153254,721-Accruals/Audit
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+1526000001,820-Re-Classifications
+1675000003,820-Re-Classifications
+153050,910-HR-Accrual-ST
+153060,911-HR-Accrual-YE
+151129,920-HR-Bonus
+111205,929-HR Others
+151050,929-HR Others
+151240,929-HR Others
+151504,929-HR Others
+153252,929-HR Others
+153255,929-HR Others
+153270,929-HR Others
+111470,209-AR-Others
+102420,others
+141000,others
+141100,others
+133019,others
+133011,others
+133013,others
+167150,others
+167153,others
+166200,others
+166209,others
+41000,400-Equity/General
+43000,others
+44040,400-Equity/General
+44060,400-Equity/General
+0BSRESULT,others
+621001000,600-Tax direct
+621011000,600-Tax direct
+629501000,601-deferred Tax
+629501300,601-deferred Tax
+629511000,601-deferred Tax
+629514050,601-deferred Tax
+629521000,601-deferred Tax
+629524050,601-deferred Tax
+629601000,601-deferred Tax
+629601300,601-deferred Tax
+151040,620-Tax indirect
+141410,others
+81020,others
+81060,others
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+24002,others
+24003,others
+1530005100,others
+102500,others
+1112400000,209-AR-Others
+141010,259-AP-Others
+133110,others
+133140,others
+133150,others
+133200,others
+133300,others
+133800,others
+132005,others
+132006,others
+132007,others
+167600,others
+133101,others
+133102,others
+133103,others
+133104,others
+133111,others
+133113,others
+133116,others
+133123,others
+133502,others
+133506,others
+214000,501-CA/Assets
+214100,501-CA/Assets
+133900,others
+211900,599-CA/General
+111051,600-Tax direct
+111057,600-Tax direct
+621001800,600-Tax direct
+111052,others
+111055,others
+111054,others
+629511000,601-deferred Tax
+111002,620-Tax indirect
+111003,620-Tax indirect
+111004,620-Tax indirect
+111005,620-Tax indirect
+151204,620-Tax indirect
+151300,620-Tax indirect
+111056,others
+63030,others
+153251,others
+631501303,750-Prov./General
+631501304,750-Prov./General
+631704050,750-Prov./General
+631704200,750-Prov./General
+631101000,752-Prov./HR Others
+631104300,752-Prov./HR Others
+1620400000,810-SAP Re-Allocation
+1410000004,820-Re-Classifications
+111180,900-Insurances
+111053,929-HR Others
+111150,929-HR Others
+111152,929-HR Others
+151051,929-HR Others
+151052,929-HR Others
+151053,929-HR Others
+153252,929-HR Others
+153253,929-HR Others
+139001,others
+24052,others
+24053,others
+101130,209-AR-Others
+102500,others
+141301,259-AP-Others
+151173,259-AP-Others
+133000,others
+133010,others
+133300,others
+133400,others
+133510,others
+133850,others
+135800,others
+135810,others
+136100,others
+134000,others
+134001,others
+134002,others
+134010,others
+134020,others
+134030,others
+134039,others
+134060,others
+134050,others
+134070,others
+134080,others
+134090,others
+133012,others
+133101,others
+133102,others
+133103,others
+133108,others
+133212,others
+133213,others
+133305,others
+133502,others
+133503,others
+133505,others
+133902,others
+167150,others
+44060,400-Equity/General
+45000,others
+214000,501-CA/Assets
+214100,501-CA/Assets
+133900,others
+151171,599-CA/General
+621001000,600-Tax direct
+629301300,601-deferred Tax
+629501000,601-deferred Tax
+629601300,601-deferred Tax
+111500,620-Tax indirect
+151031,620-Tax indirect
+151032,620-Tax indirect
+151033,620-Tax indirect
+151036,620-Tax indirect
+111520,others
+101091,others
+81080,others
+161150,others
+63060,others
+82030,others
+152011,others
+153251,others
+631501001,750-Prov./General
+631501002,750-Prov./General
+631504300,750-Prov./General
+631511000,750-Prov./General
+631511001,750-Prov./General
+631711000,750-Prov./General
+656001000,750-Prov./General
+656011000,750-Prov./General
+631701005,others
+631511002,others
+631711001,others
+656001001,others
+656011001,others
+631521001,others
+631521000,others
+631101000,752-Prov./HR Others
+631104200,752-Prov./HR Others
+631304300,752-Prov./HR Others
+1610300000,others
+1620300000,810-SAP Re-Allocation
+1410000003,820-Re-Classifications
+111151,929-HR Others
+111152,929-HR Others
+111153,929-HR Others
+111155,others
+151051,929-HR Others
+153252,929-HR Others
+81062,others
+161310,others
+111157,others
+111131,others
+162310,others
+111156,others
+23002,others
+24022,others
+1530005550,others
+101100,others
+101040,209-AR-Others
+102001,209-AR-Others
+105001,209-AR-Others
+111201,209-AR-Others
+111204,others
+102500,others
+111580,259-AP-Others
+151173,259-AP-Others
+133130,others
+133800,others
+132070,others
+167600,others
+133103,others
+133106,others
+133113,others
+133116,others
+133126,others
+133201,others
+133203,others
+133206,others
+133213,others
+133216,others
+133226,others
+214000,501-CA/Assets
+151092,others
+151093,others
+133900,others
+151171,599-CA/General
+621004050,600-Tax direct
+111052,others
+629504050,601-deferred Tax
+629604050,601-deferred Tax
+101091,others
+161150,others
+63021,others
+82050,others
+631704200,750-Prov./General
+631704300,750-Prov./General
+656011000,750-Prov./General
+656021000,750-Prov./General
+631104200,752-Prov./HR Others
+631104300,752-Prov./HR Others
+1526000005,820-Re-Classifications
+111151,929-HR Others
+151051,929-HR Others
+151052,929-HR Others
+151053,929-HR Others
+151091,929-HR Others
+151501,929-HR Others
+139001,others
+301100,150-Inventory
+301101,others
+301102,others
+301104,others
+101061,209-AR-Others
+111201,209-AR-Others
+101062,others
+102420,others
+102500,others
+161060,others
+133620,others
+167600,others
+133503,others
+133508,others
+133602,others
+133603,others
+133612,others
+133613,others
+213300,500-CA/EcoPeriod
+133900,others
+111051,600-Tax direct
+111054,others
+111031,620-Tax indirect
+151030,620-Tax indirect
+151036,620-Tax indirect
+151040,620-Tax indirect
+151201,620-Tax indirect
+111032,others
+161150,others
+631101000,752-Prov./HR Others
+631104200,752-Prov./HR Others
+631104300,752-Prov./HR Others
+1620400000,810-SAP Re-Allocation
+111151,929-HR Others
+151058,929-HR Others
+153253,929-HR Others
+151057,others
+139001,others
+1530005550,others
+101040,209-AR-Others
+102500,others
+133030,others
+133040,others
+133090,others
+133130,others
+132000,others
+132002,others
+132004,others
+132006,others
+132007,others
+132009,others
+132010,others
+133013,others
+133016,others
+133019,others
+133053,others
+133056,others
+133059,others
+133063,others
+133066,others
+133069,others
+133073,others
+133076,others
+133079,others
+133083,others
+133086,others
+133089,others
+133105,others
+138000,others
+133096,others
+1671400000,others
+214000,501-CA/Assets
+214100,501-CA/Assets
+133900,others
+112030,others
+111052,others
+111055,others
+629504050,601-deferred Tax
+629604200,601-deferred Tax
+111000,620-Tax indirect
+151040,620-Tax indirect
+151042,620-Tax indirect
+151045,620-Tax indirect
+151046,620-Tax indirect
+151200,620-Tax indirect
+111014,others
+111056,others
+111012,others
+101091,others
+101410,others
+141410,others
+161150,others
+161140,others
+81021,others
+153251,others
+605001000,751-Prov./HR Ext. Expertise
+606005460,751-Prov./HR Ext. Expertise
+606005840,751-Prov./HR Ext. Expertise
+1676900000,others
+2829003200,others
+1662500000,820-Re-Classifications
+1112000001,others
+111100,900-Insurances
+111053,929-HR Others
+111150,929-HR Others
+151051,929-HR Others
+151052,929-HR Others
+151053,929-HR Others
+151054,929-HR Others
+151055,929-HR Others
+151056,929-HR Others
+153200,929-HR Others
+153252,929-HR Others
+25001,others
+111201,209-AR-Others
+112010,209-AR-Others
+102420,others
+102500,others
+151172,259-AP-Others
+151520,259-AP-Others
+161060,others
+162060,others
+133100,others
+133110,others
+133200,others
+133800,others
+132030,others
+134000,others
+133306,others
+133402,others
+133406,others
+46010,others
+214000,501-CA/Assets
+214100,501-CA/Assets
+81080,others
+161150,others
+151170,others
+63020,others
+631704200,750-Prov./General
+631101000,752-Prov./HR Others
+631104200,752-Prov./HR Others
+631104300,752-Prov./HR Others
+1010900000,others
+1526000003,820-Re-Classifications
+111180,900-Insurances
+151620,900-Insurances
+153000,910-HR-Accrual-ST
+151560,others
+111181,others
+24001,others
+24052,others
+1530005100,others
+1530005550,others
+112010,209-AR-Others
+102420,others
+102500,others
+1112400000,209-AR-Others
+162060,others
+131000,others
+133520,others
+132010,others
+132011,others
+132012,others
+132013,others
+132016,others
+132017,others
+132018,others
+132020,others
+132021,others
+132022,others
+132014,others
+132015,others
+132019,others
+132026,others
+133102,others
+133103,others
+133112,others
+133113,others
+133202,others
+133203,others
+133204,others
+133212,others
+133213,others
+133214,others
+133412,others
+133702,others
+133703,others
+133999,others
+214100,501-CA/Assets
+151092,others
+133900,others
+111051,600-Tax direct
+62903,others
+111001,620-Tax indirect
+111003,620-Tax indirect
+111004,620-Tax indirect
+111008,620-Tax indirect
+111009,620-Tax indirect
+111030,620-Tax indirect
+151041,620-Tax indirect
+151042,620-Tax indirect
+151044,620-Tax indirect
+151045,620-Tax indirect
+151046,620-Tax indirect
+81030,640-Duty/Customs
+81031,640-Duty/Customs
+81032,640-Duty/Customs
+101091,others
+161150,others
+63021,others
+152019,others
+153251,others
+631704200,750-Prov./General
+631704300,750-Prov./General
+631101000,752-Prov./HR Others
+631104200,752-Prov./HR Others
+631104300,752-Prov./HR Others
+1675100000,810-SAP Re-Allocation
+111180,900-Insurances
+153060,911-HR-Accrual-YE
+151121,920-HR-Bonus
+111150,929-HR Others
+151051,929-HR Others
+151052,929-HR Others
+153252,929-HR Others
+81062,others
+111211,others
+12001,others
+12009,others
+22001,others
+22009,others
+24001,others
+24009,others
+24031,others
+24039,others
+102400,others
+162090,others
+133120,others
+166400,others
+133012,others
+133081,others
+133121,others
+133122,others
+133201,others
+133202,others
+213000,500-CA/EcoPeriod
+213100,500-CA/EcoPeriod
+213400,500-CA/EcoPeriod
+629304050,601-deferred Tax
+629504050,601-deferred Tax
+111030,620-Tax indirect
+63030,others
+631101000,752-Prov./HR Others
+631104200,752-Prov./HR Others
+1664400000,others
+153070,920-HR-Bonus
+12008,others
+22002,others
+22008,others
+24002,others
+24008,others
+24032,others
+24038,others
+24052,others
+24058,others
+12002,others
+24042,others
+24048,others
+1530005100,others
+101004,209-AR-Others
+101007,209-AR-Others
+111204,others
+102500,others
+102502,others
+102503,others
+151173,259-AP-Others
+162070,others
+133000,others
+133010,others
+133020,others
+133050,others
+133080,others
+133002,others
+133004,others
+133014,others
+133032,others
+133035,others
+133039,others
+133042,others
+133049,others
+133062,others
+133064,others
+133069,others
+133072,others
+133073,others
+133074,others
+133079,others
+167150,others
+166200,others
+56200,others
+211000,501-CA/Assets
+211100,others
+214000,501-CA/Assets
+214100,501-CA/Assets
+212202,others
+212206,others
+133900,others
+101080,others
+211301,others
+211311,others
+211900,599-CA/General
+211303,others
+211402,others
+211409,others
+211801,others
+211802,others
+211803,others
+211804,others
+221063,others
+221068,others
+621001300,600-Tax direct
+629301300,601-deferred Tax
+629501300,601-deferred Tax
+629504050,601-deferred Tax
+629601300,601-deferred Tax
+151031,620-Tax indirect
+151032,620-Tax indirect
+151034,620-Tax indirect
+151036,620-Tax indirect
+221051,640-Duty/Customs
+101090,others
+161150,others
+141006,others
+82020,others
+151181,721-Accruals/Audit
+656001000,750-Prov./General
+656004050,750-Prov./General
+656004200,750-Prov./General
+659501000,750-Prov./General
+605015840,751-Prov./HR Ext. Expertise
+605025460,751-Prov./HR Ext. Expertise
+605525460,751-Prov./HR Ext. Expertise
+605525860,751-Prov./HR Ext. Expertise
+605511000,others
+604011000,others
+631371000,others
+631111000,752-Prov./HR Others
+631321000,752-Prov./HR Others
+1010500000,others
+2829001000,others
+2829003200,others
+1620300000,810-SAP Re-Allocation
+111206,929-HR Others
+151056,929-HR Others
+151240,929-HR Others
+162021,others
+21021,others
+24021,others
+1530001150,others
+301060,150-Inventory
+101009,209-AR-Others
+101040,209-AR-Others
+111201,209-AR-Others
+112010,209-AR-Others
+111204,others
+101209,others
+102500,others
+141010,259-AP-Others
+141303,259-AP-Others
+141305,others
+161010,others
+162010,others
+161029,others
+161209,others
+161309,others
+162309,others
+162209,others
+161022,others
+162080,others
+133020,others
+133100,others
+133110,others
+133120,others
+133130,others
+133260,others
+133510,others
+132000,others
+132100,others
+167600,others
+133026,others
+133035,others
+133036,others
+133046,others
+133037,others
+1671400000,others
+46060,others
+214100,501-CA/Assets
+151177,503-CA/HR
+151179,503-CA/HR
+211900,599-CA/General
+221025,others
+221030,others
+221035,others
+221045,others
+221230,others
+221300,others
+221305,others
+221310,others
+141109,others
+621004050,600-Tax direct
+621004200,600-Tax direct
+621014050,600-Tax direct
+621014200,600-Tax direct
+62900,others
+629304050,601-deferred Tax
+629314050,601-deferred Tax
+629501300,601-deferred Tax
+629504050,601-deferred Tax
+629514050,601-deferred Tax
+629524050,601-deferred Tax
+629524200,601-deferred Tax
+629601000,601-deferred Tax
+629601300,601-deferred Tax
+629604200,601-deferred Tax
+101090,others
+141410,others
+63252,others
+161150,others
+63021,others
+81061,others
+81063,others
+81160,others
+82020,others
+82040,others
+63023,others
+63024,others
+63025,others
+81021,others
+82010,others
+153251,others
+631504300,750-Prov./General
+631714050,750-Prov./General
+632001300,750-Prov./General
+632001304,750-Prov./General
+632034050,750-Prov./General
+632304050,750-Prov./General
+650501001,750-Prov./General
+650501002,750-Prov./General
+650501003,750-Prov./General
+656001000,750-Prov./General
+659504200,750-Prov./General
+659504300,750-Prov./General
+650501004,others
+650501005,others
+607501000,others
+607001000,others
+631104300,752-Prov./HR Others
+1620300000,810-SAP Re-Allocation
+720200000,810-SAP Re-Allocation
+1230100005,820-Re-Classifications
+151140,900-Insurances
+151120,920-HR-Bonus
+151176,929-HR Others
+151550,929-HR Others
+153200,929-HR Others
+153250,929-HR Others
+153253,929-HR Others
+153257,929-HR Others
+153260,929-HR Others
+81062,others
+162210,others
+101109,others
+162022,others
+162029,others
+162310,others
+102500,others
+151174,259-AP-Others
+133030,others
+133040,others
+133420,others
+133440,others
+133411,others
+167151,others
+166201,others
+211100,others
+221411,others
+221413,others
+151502,600-Tax direct
+629301300,601-deferred Tax
+629401300,601-deferred Tax
+151040,620-Tax indirect
+81061,others
+81063,others
+81170,others
+151180,721-Accruals/Audit
+153251,others
+151129,920-HR-Bonus
+151050,929-HR Others
+151178,929-HR Others
+151501,929-HR Others
+151503,929-HR Others
+151504,929-HR Others
+153253,929-HR Others
+153255,929-HR Others
+301100,150-Inventory
+301120,150-Inventory
+133010,others
+133020,others
+133040,others
+135030,others
+135060,others
+133016,others
+133019,others
+133031,others
+214000,501-CA/Assets
+214100,501-CA/Assets
+133900,others
+621001300,600-Tax direct
+621014050,600-Tax direct
+629304050,601-deferred Tax
+629324050,601-deferred Tax
+629404200,601-deferred Tax
+629501000,601-deferred Tax
+629501300,601-deferred Tax
+162500,others
+81160,others
+631504200,750-Prov./General
+631701450,750-Prov./General
+631704050,750-Prov./General
+631711000,750-Prov./General
+631711450,750-Prov./General
+631714050,750-Prov./General
+656004300,750-Prov./General
+104004050,820-Re-Classifications
+111152,929-HR Others
+151050,929-HR Others
+151501,929-HR Others
+151503,929-HR Others
+153200,929-HR Others
+141303,259-AP-Others
+151174,259-AP-Others
+133010,others
+133130,others
+133016,others
+133032,others
+211100,others
+214000,501-CA/Assets
+214100,501-CA/Assets
+214200,501-CA/Assets
+133900,others
+221240,599-CA/General
+221530,599-CA/General
+621004300,600-Tax direct
+81140,640-Duty/Customs
+631501000,750-Prov./General
+631701150,750-Prov./General
+631704200,750-Prov./General
+631711150,750-Prov./General
+632301000,750-Prov./General
+632304050,750-Prov./General
+632304300,750-Prov./General
+632304200,others
+111152,929-HR Others
+151501,929-HR Others
+151503,929-HR Others
+1530005100,others
+151174,259-AP-Others
+133016,others
+133019,others
+211100,others
+214000,501-CA/Assets
+214100,501-CA/Assets
+214200,501-CA/Assets
+133900,others
+631704050,750-Prov./General
+631704300,750-Prov./General
+632301000,750-Prov./General
+632304050,750-Prov./General
+632304200,others
+1410000001,820-Re-Classifications
+151178,929-HR Others
+151501,929-HR Others
+151503,929-HR Others
+133010,others
+133016,others
+133019,others
+133032,others
+151502,600-Tax direct
+629504200,601-deferred Tax
+629514050,601-deferred Tax
+63070,others
+81060,others
+111270,810-SAP Re-Allocation
+1410100000,810-SAP Re-Allocation
+151050,929-HR Others
+151501,929-HR Others
+151503,929-HR Others
+24201,others
+1530001450,others
+1530005550,others
+151174,259-AP-Others
+151520,259-AP-Others
+133010,others
+133016,others
+133031,others
+133032,others
+214000,501-CA/Assets
+214100,501-CA/Assets
+133900,others
+629504200,601-deferred Tax
+629514050,601-deferred Tax
+629524200,601-deferred Tax
+101410,others
+141410,others
+63070,others
+82020,others
+631701000,750-Prov./General
+631704300,750-Prov./General
+151501,929-HR Others
+151503,929-HR Others
+133010,others
+133130,others
+133016,others
+133019,others
+621004050,600-Tax direct
+621014050,600-Tax direct
+629514200,601-deferred Tax
+629524200,601-deferred Tax
+63070,others
+631501000,750-Prov./General
+631504300,750-Prov./General
+133053,others
+211100,others
+133100,others
+133110,others
+133120,others
+166200,others
+41000,400-Equity/General
+44060,400-Equity/General
+151170,others
+1620300000,810-SAP Re-Allocation
