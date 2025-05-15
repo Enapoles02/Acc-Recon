@@ -21,14 +21,11 @@ def init_firebase():
         firebase_admin.initialize_app(cred, {"storageBucket": bucket_name})
     return firestore.client(), bucket_name
 
-# ------------------ Cargar Mapping desde Firebase ------------------
+# ------------------ Cargar Mapping desde GitHub ------------------
 @st.cache_data
 def load_mapping():
-    _, bucket_name = init_firebase()
-    bucket = storage.bucket()
-    blob = bucket.blob("Mapping.xlsx")
-    data = blob.download_as_bytes()
-    df = pd.read_excel(BytesIO(data), dtype=str)
+    url = "https://raw.githubusercontent.com/Enapoles02/Acc-Recon/main/Mapping.csv"
+    df = pd.read_csv(url, dtype=str)
     df.columns = df.columns.str.strip()
     df = df.rename(columns={"GL Account": "GL Account", "Group": "ReviewGroup"})
     return df
