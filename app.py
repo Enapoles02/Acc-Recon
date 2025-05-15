@@ -4,7 +4,7 @@ import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-# Inicializa Firebase y retorna cliente
+# ------------------ Firebase Setup ------------------
 @st.cache_resource
 def init_firebase():
     if not firebase_admin._apps:
@@ -13,59 +13,63 @@ def init_firebase():
         firebase_admin.initialize_app(cred)
     return firestore.client()
 
-# Carga índices: solo campos necesarios (GL, filtros)
+# ------------------ Data Loading ------------------
 @st.cache_data(ttl=300)
 def load_index_data():
+    """
+    Carga solo las columnas necesarias (GL y Country) para el índice y mejora rendimiento.
+    """
     db = init_firebase()
-    col = db.collection("reconciliation_records")
-    # Solicitar solo campos clave
-    select_fields = [
-        find_column_name(col, ["gl account name", "gl name", "account name"]),
-        find_column_name(col, ["preparer"]),
-        find_column_name(col, ["country"]),
-        find_column_name(col, ["fc input", "filler"])
-    ]
-    select_fields = [f for f in select_fields if f]
-    docs = col.stream() if not select_fields else col.select(select_fields).stream()
-    records = []
-    for doc in docs:
-        data = doc.to_dict()
-        data['_id'] = doc.id
-        # mantener solo índice y filtros
-        record = {k: data.get(k) for k in select_fields}
-        record['_id'] = doc.id
-        records.append(record)
-    return pd.DataFrame(records)
-
-# Detecta nombre de columna dinámicamente
-def find_column_name(collection, keywords):
-    # Obtener un documento de muestra para extraer columnas
-    sample = next(collection.limit(1).stream(), None)
+    col_ref = db.collection("reconciliation_records")
+    # Detectar nombres de columna
+    sample = next(col_ref.limit(1).stream(), None)
     if not sample:
+        return pd.DataFrame()
+    cols = list(sample.to_dict().keys())
+    # Encontrar columna GL y Country
+    def find_col(keys):
+        for k in keys:
+            for c in cols:
+                if k.lower() in c.lower(): return c
         return None
-    cols = sample.to_dict().keys()
-    for kw in keywords:
-        for c in cols:
-            if kw.lower() in c.lower():
-                return c
-    return None
+    gl_col = find_col(["gl account name","gl name","account name"])
+    country_col = find_col(["country"])
+    if not gl_col or not country_col:
+        return pd.DataFrame()
+    # Stream docs con selección
+    try:
+        docs = col_ref.select([gl_col, country_col]).stream()
+    except Exception:
+        docs = col_ref.stream()
+    records = []
+    for d in docs:
+        data = d.to_dict()
+        records.append({
+            "_id": d.id,
+            gl_col: data.get(gl_col),
+            country_col: data.get(country_col)
+        })
+    df = pd.DataFrame(records)
+    return df
 
-# Carga detalle de un solo registro por id
 @st.cache_data(ttl=60)
 def load_record(rec_id):
+    """
+    Carga todos los campos de un solo registro (al expandirse).
+    """
     db = init_firebase()
     doc = db.collection("reconciliation_records").document(rec_id).get()
     if not doc.exists:
         return {}
-    data = doc.to_dict()
-    data['_id'] = rec_id
-    return data
+    rec = doc.to_dict()
+    rec['_id'] = rec_id
+    return rec
 
-# Obtiene comentarios ordenados por timestamp
+# ------------------ Comments ------------------
 @st.cache_data(ttl=60)
-def get_comments(record_id):
+def get_comments(rec_id):
     db = init_firebase()
-    coll = db.collection("reconciliation_records").document(record_id).collection("comments")
+    coll = db.collection("reconciliation_records").document(rec_id).collection("comments")
     comments = []
     for d in coll.order_by("timestamp").stream():
         c = d.to_dict()
@@ -75,97 +79,115 @@ def get_comments(record_id):
         comments.append(c)
     return comments
 
-# Agrega un comentario con SERVER_TIMESTAMP
-def add_comment(record_id, user, text):
+def add_comment(rec_id, user, text):
     db = init_firebase()
-    coll = db.collection("reconciliation_records").document(record_id).collection("comments")
+    coll = db.collection("reconciliation_records").document(rec_id).collection("comments")
     coll.add({ 'user': user, 'text': text, 'timestamp': firestore.SERVER_TIMESTAMP })
 
-# Admin: sube Excel a Firestore
+# ------------------ Upload Admin ------------------
 def upload_data(file):
-    db = init_firebase()
     df_sheet = pd.read_excel(file)
+    # Eliminar PowerAppsId y Unnamed
     df_sheet = df_sheet.loc[:, ~df_sheet.columns.str.lower().str.contains('powerappsid')]
     df_sheet = df_sheet.loc[:, ~df_sheet.columns.str.startswith('Unnamed')]
-    col = db.collection("reconciliation_records")
-    for doc in col.stream():
-        doc.reference.delete()
+    db = init_firebase()
+    col_ref = db.collection("reconciliation_records")
+    for d in col_ref.stream(): d.reference.delete()
     for idx, row in df_sheet.iterrows():
-        col.document(str(idx)).set(row.dropna().to_dict())
+        col_ref.document(str(idx)).set(row.dropna().to_dict())
 
-# Interfaz principal
+# ------------------ Main App ------------------
 def main():
     st.set_page_config(layout="wide")
     st.title("Dashboard de Reconciliación GL")
 
-    # Sidebar: usuario y admin
-    user = st.sidebar.text_input("Usuario (para comentarios)")
-    admin_code = st.secrets.get("admin_code", "ADMIN")
-    pwd = st.sidebar.text_input("Clave Admin", type="password")
-    is_admin = pwd == admin_code
-    if pwd:
-        st.sidebar.success("Admin" if is_admin else "Clave incorrecta")
+    # Sidebar: Usuario y Admin
+    user = st.sidebar.text_input("Usuario (para filtrar por Country)")
+    admin_pwd = st.sidebar.text_input("Clave Admin", type="password")
+    is_admin = (admin_pwd == st.secrets.get("admin_code","ADMIN"))
+    if admin_pwd:
+        st.sidebar.warning("Modo Admin activado" if is_admin else "Clave incorrecta")
     if is_admin:
         file = st.sidebar.file_uploader("Cargar Excel (.xlsx/.xls)", type=["xlsx","xls"])
         if file and st.sidebar.button("Subir a Firestore"):
             upload_data(file)
-            st.sidebar.success("Datos cargados")
+            st.sidebar.success("Datos cargados correctamente.")
             st.experimental_rerun()
 
-    # Cargar índice de datos
-    df_idx = load_index_data()
-    if df_idx.empty:
-        st.warning("No hay datos. Usa Admin para cargar un archivo.")
+    # Validar usuario
+    if not user:
+        st.warning("Por favor ingresa tu nombre de usuario en la sidebar para filtrar.")
         return
 
-    # Filtros dependientes
-    st.sidebar.header("Filtros")
-    for col_key in [k for k in ['preparer', 'country', 'filler'] if col_key in df_idx.columns]:
-        opts = ['Todos'] + sorted(df_idx[col_key].dropna().unique())
-        sel = st.sidebar.selectbox(col_key.capitalize(), opts)
-        if sel != 'Todos':
-            df_idx = df_idx[df_idx[col_key] == sel]
+    # Mapping usuario -> lista de países
+    mapping = {
+        "Paula Sarachaga": ["Argentina","Chile","Guatemala"],
+        "Napoles Enrique": ["Canada"],
+        "Julio": ["United states of america"],
+        "Guadalupe": ["Mexico","Peru","Panama"]
+    }
 
-    # Mostrar cards con scroll
-    st.subheader("Cuentas GL")
-    container = st.container()
+    # Cargar índice y filtrar por Country
+    df_idx = load_index_data()
+    if df_idx.empty:
+        st.error("No se pudo cargar datos de índice o faltan columnas.")
+        return
+
+    # Encontrar nombre exacto de columna Country
+    country_col = [c for c in df_idx.columns if c.lower().startswith("country")][0]
+    # Determinar países permitidos
+    if user in mapping:
+        allowed = mapping[user]
+    else:
+        # Otros países: todos los que no están en mapping
+        all_c = df_idx[country_col].dropna().unique().tolist()
+        used = sum(mapping.values(), [])
+        allowed = [c for c in all_c if c not in used]
+    # Filtrar índice
+    df_idx = df_idx[df_idx[country_col].isin(allowed)]
+
+    # Mostrar cards expandibles
+    st.subheader("Tus Cuentas GL")
     for _, row in df_idx.iterrows():
         rec_id = row['_id']
-        # Cargar detalle al expandirse
-        with container.expander(row.get(find_column_name(db.collection("reconciliation_records"), ["gl account name", "gl name", "account name"]) , expanded=False)):
+        gl_name = row[[c for c in df_idx.columns if c.lower().startswith("gl")][0]]
+        with st.expander(f"{gl_name}"):
             rec = load_record(rec_id)
-            # Mostrar campos detallados
-            st.write(f"**Assigned Reviewer:** {rec.get('Assigned Reviewer', '')}")
-            st.write(f"**Cluster:** {rec.get('Cluster', '')}")
-            # Completed y fecha
-            comp = rec.get('Completed', '')
-            chk = st.checkbox("Completed", value=str(comp).lower() in ['yes','true','1'], key=f"chk_{rec_id}")
-            date_val = rec.get('Completion Date', '')
+            # Mostrar detalles básicos
+            for field in [k for k in rec.keys() if k.lower().startswith(('assigned reviewer','cluster','balance'))]:
+                st.write(f"**{field}:** {rec.get(field)}")
+            # Completed
+            comp = rec.get('Completed','')
+            checked = str(comp).lower() in ['yes','true','1']
+            new_c = st.checkbox("Completed", value=checked, key=f"c_{rec_id}")
+            # Fecha
+            dt_key = f"date_{rec_id}"
             try:
-                def_date = pd.to_datetime(date_val).date()
+                default = pd.to_datetime(rec.get('Completion Date')).date()
             except:
-                def_date = datetime.date.today()
-            new_date = st.date_input("Completion Date", value=def_date, key=f"date_{rec_id}")
-            if st.button("Guardar cambios", key=f"save_{rec_id}"):
-                updates = {}
-                updates['Completed'] = 'Yes' if chk else 'No'
-                updates['Completion Date'] = new_date.strftime('%Y-%m-%d')
+                default = datetime.date.today()
+            new_date = st.date_input("Completion Date", value=default, key=dt_key)
+            if st.button("Guardar", key=f"save_{rec_id}"):
+                updates = {
+                    'Completed': 'Yes' if new_c else 'No',
+                    'Completion Date': new_date.strftime('%Y-%m-%d')
+                }
                 init_firebase().collection("reconciliation_records").document(rec_id).update(updates)
-                st.success("Actualizado")
+                st.success("Actualizado.")
             st.markdown("---")
-            # Comentarios estilo chat
+            # Chat de comentarios
             st.subheader("Comentarios")
             for c in get_comments(rec_id):
                 ts = c.get('timestamp')
-                t_str = ts.strftime('%Y-%m-%d %H:%M') if isinstance(ts, datetime.datetime) else ''
-                st.markdown(f"**{c.get('user','Anon')}** ({t_str}): {c.get('text')}")
-            comment = st.text_area("Nuevo comentario:", key=f"comment_{rec_id}")
+                txt_ts = ts.strftime('%Y-%m-%d %H:%M') if hasattr(ts,'strftime') else ''
+                st.markdown(f"**{c.get('user','Anon')}** ({txt_ts}): {c.get('text')}")
+            new_txt = st.text_area("Nuevo comentario", key=f"ct_{rec_id}")
             if st.button("Agregar comentario", key=f"add_{rec_id}"):
-                if user and comment:
-                    add_comment(rec_id, user, comment)
+                if user and new_txt:
+                    add_comment(rec_id, user, new_txt)
                     st.experimental_rerun()
                 else:
-                    st.error("Usuario y comentario requeridos.")
+                    st.error("Debes ingresar usuario y texto.")
 
 if __name__ == '__main__':
     main()
