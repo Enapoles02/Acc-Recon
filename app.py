@@ -52,7 +52,7 @@ def load_index_data():
         recs.append({
             "_id": d.id,
             "gl_name": data.get(gl_col),
-            "account": data.get(acc_col),
+            "GL Account": str(data.get(acc_col)).strip(),
             "country": data.get(country_col)
         })
     return pd.DataFrame(recs)
@@ -135,18 +135,6 @@ def main():
     deadline = deadline_base + datetime.timedelta(days=wd_day)
 
     if is_admin:
-        file = st.sidebar.file_uploader("Cargar Excel", type=["xlsx", "xls"])
-        if file and st.sidebar.button("Subir a Firestore"):
-            df = pd.read_excel(file)
-            df = df.loc[:, ~df.columns.str.lower().str.contains('powerappsid')]
-            df = df.loc[:, ~df.columns.str.startswith('Unnamed')]
-            db, _ = init_firebase()
-            col_ref = db.collection("reconciliation_records")
-            for d in col_ref.stream(): d.reference.delete()
-            for i, row in df.iterrows(): col_ref.document(str(i)).set(row.dropna().to_dict())
-            load_index_data.clear()
-            st.sidebar.success("Datos cargados")
-
         uploaded_mapping = st.sidebar.file_uploader("Actualizar Mapping.xlsx", type=["xlsx"])
         if uploaded_mapping:
             _, bucket_name = init_firebase()
@@ -170,10 +158,10 @@ def main():
     df = load_index_data()
     map_df = load_mapping()
 
-    # ✅ Corrección de tipos para merge seguro
-    df["account"] = df["account"].astype(str)
-    map_df["Account"] = map_df["Account"].astype(str)
-    df = df.merge(map_df[["Account", "GL-ReviewGroup"]], left_on="account", right_on="Account", how="left")
+    # --- Asignar ReviewGroup usando GL Account ---
+    df["GL Account"] = df["GL Account"].astype(str).str.strip()
+    map_df["Account"] = map_df["Account"].astype(str).str.strip()
+    df = df.merge(map_df, left_on="GL Account", right_on="Account", how="left")
     df["ReviewGroup"] = df["GL-ReviewGroup"].fillna("Others")
 
     if df.empty:
@@ -203,7 +191,7 @@ def main():
         sub = df.iloc[st.session_state['start']:st.session_state['start'] + 5]
         for _, r in sub.iterrows():
             key = r['_id']
-            label = f"{r['gl_name']} - {r['account']} ({abbr(r['country'])})"
+            label = f"{r['gl_name']} - {r['GL Account']} ({abbr(r['country'])})"
             if st.button(label, key=key):
                 st.session_state['selected'] = key
 
