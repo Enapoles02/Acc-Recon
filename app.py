@@ -10,7 +10,6 @@ st.title("Dashboard de Reconciliación GL")
 
 # ------------------ Firebase Init ------------------
 @st.cache_resource
-
 def init_firebase():
     firebase_creds = st.secrets["firebase_credentials"]
     if hasattr(firebase_creds, "to_dict"):
@@ -23,6 +22,13 @@ def init_firebase():
         })
     return firestore.client(), bucket_name
 
+# ------------------ Load Mapping ------------------
+@st.cache_data
+def load_mapping():
+    df_map = pd.read_excel("/mnt/data/Mapping.xlsx")
+    df_map.columns = df_map.columns.str.strip()
+    return df_map.set_index("Account")
+
 # ------------------ Funciones ------------------
 @st.cache_data(ttl=300)
 def load_index_data():
@@ -32,15 +38,16 @@ def load_index_data():
     if not sample:
         return pd.DataFrame()
     gl_col = "GL NAME"
+    acc_col = "GL ACCOUNT"
     country_col = "Country"
     try:
-        docs = col.select([gl_col, country_col]).stream()
+        docs = col.select([gl_col, acc_col, country_col]).stream()
     except Exception:
         docs = col.stream()
     recs = []
     for d in docs:
         data = d.to_dict()
-        recs.append({"_id": d.id, "gl_name": data.get(gl_col), "country": data.get(country_col)})
+        recs.append({"_id": d.id, "gl_name": data.get(gl_col), "account": data.get(acc_col), "country": data.get(country_col)})
     return pd.DataFrame(recs)
 
 @st.cache_data(ttl=60)
@@ -113,6 +120,11 @@ def main():
     user = st.sidebar.text_input("Usuario")
     pwd = st.sidebar.text_input("Admin Key", type="password")
     is_admin = (pwd == st.secrets.get("admin_code", "ADMIN"))
+
+    wd_day = st.sidebar.number_input("Working Day para Deadline (WD+X):", min_value=1, max_value=10, value=3)
+    deadline_base = datetime.date.today().replace(day=1) + datetime.timedelta(days=30)  # provisional fin de mes
+    deadline = deadline_base + datetime.timedelta(days=wd_day)
+
     if is_admin:
         file = st.sidebar.file_uploader("Cargar Excel", type=["xlsx", "xls"])
         if file and st.sidebar.button("Subir a Firestore"):
@@ -137,6 +149,9 @@ def main():
         return
 
     df = load_index_data()
+    map_df = load_mapping()
+    df["ReviewGroup"] = df["account"].map(lambda x: map_df.get("GL-ReviewGroup", {}).get(x, "Others"))
+
     if df.empty:
         st.error("Sin datos o columnas faltantes.")
         return
@@ -144,8 +159,12 @@ def main():
     allowed = mapping.get(user, [c for c in df['country'].unique() if c not in sum(mapping.values(), [])])
     df = df[df['country'].isin(allowed)]
     q = st.sidebar.text_input("Buscar cuenta")
+    review_filter = st.sidebar.selectbox("Grupo de revisión", options=["All"] + sorted(df["ReviewGroup"].unique().tolist()))
+
     if q:
         df = df[df['gl_name'].str.contains(q, case=False, na=False)]
+    if review_filter != "All":
+        df = df[df["ReviewGroup"] == review_filter]
 
     if 'start' not in st.session_state: st.session_state['start'] = 0
     n = len(df)
@@ -159,7 +178,7 @@ def main():
         sub = df.iloc[st.session_state['start']:st.session_state['start'] + 5]
         for _, r in sub.iterrows():
             key = r['_id']
-            label = f"{r['gl_name']} ({abbr(r['country'])})"
+            label = f"{r['gl_name']} - {r['account']} ({abbr(r['country'])})"
             if st.button(label, key=key):
                 st.session_state['selected'] = key
 
@@ -169,7 +188,7 @@ def main():
             st.info("Selecciona una cuenta del panel izquierdo.")
         else:
             rec = load_record(sel)
-            st.subheader(f"{rec.get('gl_name')} - {abbr(rec.get('country', ''))}")
+            st.subheader(f"{rec.get('gl_name')} - {rec.get('GL ACCOUNT', '')} ({abbr(rec.get('country', ''))})")
             for f in ['Assigned Reviewer', 'Cluster']:
                 if f in rec: st.write(f"**{f}:** {rec[f]}")
             comp = str(rec.get('Completed', '')).lower() in ['yes', 'true', '1']
@@ -179,8 +198,12 @@ def main():
             except:
                 dv = datetime.date.today()
             nd = st.date_input("Completion Date", value=dv)
+
+            status = "Delay" if not comp and nd > deadline else "On time"
+            st.write(f"⏱ Estado: `{status}` (Deadline: {deadline})")
+
             if st.button("Guardar cambios"):
-                updates = {'Completed': 'Yes' if nv else 'No', 'Completion Date': nd.strftime('%Y-%m-%d')}
+                updates = {'Completed': 'Yes' if nv else 'No', 'Completion Date': nd.strftime('%Y-%m-%d'), 'Status': status}
                 init_firebase()[0].collection("reconciliation_records").document(sel).update(updates)
                 st.success("Registro actualizado")
 
@@ -199,7 +222,7 @@ def main():
             st.subheader("Comentarios")
             for c in get_comments(sel):
                 ts = c.get('timestamp')
-                txt = ts.strftime('%Y-%m-%d %H:%M') if hasattr(ts, 'strftime') else ''
+                txt = ts.strftime('%Y-%m-%d %H:%M') if hasattr(ts,'strftime') else ''
                 st.markdown(f"**{c.get('user')}** ({txt}): {c.get('text')}")
             nc = st.text_area("Nuevo comentario", key=f"com_{sel}")
             if st.button("Agregar comentario", key=f"addcom_{sel}"):
