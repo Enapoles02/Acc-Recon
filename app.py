@@ -29,7 +29,7 @@ def load_mapping():
     data = blob.download_as_bytes()
     df_map = pd.read_excel(data)
     df_map.columns = df_map.columns.str.strip()
-    return df_map.set_index("Account")
+    return df_map
 
 # ------------------ Funciones de carga ------------------
 @st.cache_data(ttl=300)
@@ -170,8 +170,9 @@ def main():
     df = load_index_data()
     map_df = load_mapping()
 
-    # ✅ Corrección aplicada aquí
-    df["ReviewGroup"] = df["account"].map(map_df["GL-ReviewGroup"]).fillna("Others")
+    # ✅ Corrección para evitar error por índice duplicado
+    df = df.merge(map_df[["Account", "GL-ReviewGroup"]], left_on="account", right_on="Account", how="left")
+    df["ReviewGroup"] = df["GL-ReviewGroup"].fillna("Others")
 
     if df.empty:
         st.error("Sin datos o columnas faltantes.")
