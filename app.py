@@ -162,8 +162,8 @@ def main():
         if st.button("↓") and st.session_state['start'] < n - 5:
             st.session_state['start'] += 1
         sub = df.iloc[st.session_state['start']:st.session_state['start'] + 5]
-        for _, r in sub.iterrows():
-            key = f"{r['_id']}_{r.get('GL Account', '')}_{r.get('country', '')}"
+        for i, (_, r) in enumerate(sub.iterrows()):
+            key = f"{i}_{r.get('_id', '')}_{r.get('GL Account', '')}_{r.get('country', '')}"
             label = f"{r.get('gl_name', '')} - {r.get('GL Account', '')} ({abbr(r.get('country', ''))})"
             if st.button(label, key=key):
                 st.session_state['selected'] = r['_id']
