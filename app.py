@@ -21,8 +21,11 @@ USER_ACCESS = {
     "Guadalupe": {"countries": ["Mexico", "Peru", "Panama"], "streams": "ALL"},
     "Gabriel Aviles": {"countries": ["Canada", "United States of America"], "streams": ["RTR-FA"]},
     "Delhumeau Luis": {"countries": ["Canada"], "streams": ["RTR-ICO"]},
-    "ADMIN": {"countries": "ALL", "streams": "ALL"}
+    "ADMIN": {"countries": "ALL", "streams": "ALL"},
+    "Guillermo Mayoral": {"countries": "ALL", "streams": "ALL"},
+    "Guillermo Guarneros": {"countries": "ALL", "streams": "ALL"}
 }
+
 
 if not user:
     st.warning("Ingresa tu nombre de usuario para continuar.")
