@@ -141,23 +141,32 @@ if modo == "📈 Dashboard KPI":
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("📌 Estado general (Pending vs On time)")
-        pie_data = filtered_df[filtered_df["Status Mar"].isin(["Pending", "On time"])]
-        if not pie_data.empty:
-            pie_counts = pie_data["Status Mar"].value_counts().reset_index()
-            pie_counts.columns = ["Status", "Count"]
+    st.subheader("📌 Estado general (Pending vs Completed)")
 
-            pie_fig = px.pie(
-                pie_counts,
-                names="Status",
-                values="Count",
-                title="Estado General",
-                hover_data=["Count"]
-            )
-            pie_fig.update_traces(textinfo='percent+label', hovertemplate='%{label}: %{value} cuentas (%{percent})')
-            st.plotly_chart(pie_fig, use_container_width=True)
-        else:
-            st.info("No hay datos suficientes para la gráfica de pastel.")
+    pie_data = filtered_df[filtered_df["Status Mar"].isin(["Pending", "On time", "Completed/Delayed"])].copy()
+    pie_data["Status Simplified"] = pie_data["Status Mar"].apply(
+        lambda x: "Completed" if x in ["On time", "Completed/Delayed"] else "Pending"
+    )
+
+    if not pie_data.empty:
+        pie_counts = pie_data["Status Simplified"].value_counts().reset_index()
+        pie_counts.columns = ["Status", "Count"]
+
+        pie_fig = px.pie(
+            pie_counts,
+            names="Status",
+            values="Count",
+            title="Estado General",
+            hover_data=["Count"]
+        )
+        pie_fig.update_traces(
+            textinfo='label+value+percent',
+            hovertemplate='%{label}: %{value} cuentas (%{percent})'
+        )
+        st.plotly_chart(pie_fig, use_container_width=True)
+    else:
+        st.info("No hay datos suficientes para la gráfica de pastel.")
+
 
 
     with col2:
