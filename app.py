@@ -139,7 +139,22 @@ if USER_COUNTRY_MAPPING.get(user) == "ALL":
         with st.spinner("Recalculando estados de conciliación..."):
             def evaluate_status_manual(row):
                 completed = str(row.get("Completed Mar", "")).strip().upper()
-                return "On time" if completed == "YES" else "Delayed"
+                timestamp_str = str(row.get("Completed Timestamp", "")).strip()
+
+                if completed == "YES":
+                    if timestamp_str:
+                        try:
+                            completed_ts = pd.to_datetime(timestamp_str)
+                            if completed_ts <= deadline_date:
+                                return "On time"
+                            else:
+                                return "Completed/Delayed"
+                        except Exception:
+                            return "Completed/Delayed"
+                    else:
+                        return "Completed/Delayed"
+                else:
+                    return "Delayed"
 
             df["Status Mar"] = df.apply(evaluate_status_manual, axis=1)
 
@@ -165,7 +180,16 @@ if day_is_wd1:
 if day_is_wd4:
     def evaluate_status(row):
         completed = str(row.get("Completed Mar", "")).strip().upper()
-        return "On time" if completed == "YES" else "Delayed"
+        timestamp_str = str(row.get("Completed Timestamp", "")).strip()
+        if completed == "YES" and timestamp_str:
+            try:
+                completed_ts = pd.to_datetime(timestamp_str)
+                return "On time" if completed_ts <= deadline_date else "Completed/Delayed"
+            except:
+                return "Completed/Delayed"
+        elif completed == "YES":
+            return "Completed/Delayed"
+        return "Delayed"
 
     df["Status Mar"] = df.apply(evaluate_status, axis=1)
 
@@ -193,7 +217,8 @@ def status_color(status):
     return {
         'On time': '🟢',
         'Delayed': '🔴',
-        'Pending': '⚪️'
+        'Pending': '⚪️',
+        'Completed/Delayed': '🟢🔴'
     }.get(status, '⚪️')
 
 records_per_page = 5
@@ -253,7 +278,7 @@ with cols[1]:
             now = datetime.now(pytz.timezone("America/Mexico_City"))
             timestamp_str = now.strftime("%Y-%m-%d %H:%M:%S")
             today = pd.Timestamp(now.date())
-            status_result = "On time" if today <= deadline_date else "Delayed"
+            status_result = "On time" if new_check and today <= deadline_date else "Completed/Delayed" if new_check else "Delayed"
 
             live_doc_ref.update({
                 "Completed Mar": new_status,
