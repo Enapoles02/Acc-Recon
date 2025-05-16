@@ -115,6 +115,20 @@ if USER_COUNTRY_MAPPING.get(user) == "ALL":
                     "Deadline Used": ""
                 })
             st.sidebar.success("Todos los registros han sido reiniciados.")
+    if st.sidebar.button("🔄 Forzar evaluación de Status Mar"):
+        def evaluate_status_manual(row):
+            completed = str(row.get("Completed Mar", "")).strip().upper()
+            return "On time" if completed == "YES" else "Delayed"
+
+        df["Status Mar"] = df.apply(evaluate_status_manual, axis=1)
+
+        for _, row in df.iterrows():
+            db.collection("reconciliation_records").document(row["_id"]).update({
+                "Status Mar": row["Status Mar"],
+                "Deadline Used": deadline_date.strftime("%Y-%m-%d")
+            })
+
+        st.sidebar.success("Se recalculó el estado de todos los GL.")
 
 if USER_COUNTRY_MAPPING.get(user) == "ALL":
     st.sidebar.markdown("### ⚙️ Configuración de Fecha Límite")
