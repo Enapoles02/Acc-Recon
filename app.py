@@ -217,11 +217,12 @@ if modo == "📋 Visor GL":
 
     def status_color(status):
         return {
-            'On time': '🟢',
+            'On time': '',
             'Delayed': '🔴',
             'Pending': '⚪️',
-            'Completed/Delayed': '🟢🔴'
-        }.get(status, '⚪️')
+            'Completed/Delayed': '',
+            'Review Required': '🟡'
+        }.get(status, '⚪️').get(status, '⚪️')
 
     cols = st.columns([3, 9])
     with cols[0]:
@@ -233,7 +234,7 @@ if modo == "📋 Visor GL":
             gl_name = str(row.get("GL NAME", "Sin nombre"))
             if gl_name is None or gl_name == "Ellipsis" or gl_name == str(...):
                 gl_name = "Sin nombre"
-            label = f"{color} {gl_account} - {gl_name}"
+            label = f"{gl_account} - {gl_name}" if status in ['On time', 'Completed/Delayed'] else f"{color} {gl_account} - {gl_name}"
             if st.button(label, key=f"btn_{i}"):
                 st.session_state.selected_index = i
                 selected_index = i
@@ -282,6 +283,16 @@ if modo == "📋 Visor GL":
 
             current_status = live_doc.get("Status Mar", "Pending")
             st.markdown(f"**status:** {current_status}")
+
+            # Nuevo botón de revisión
+            review_required = current_status == "Review Required"
+            new_review = st.checkbox("⚠️ Review Required", value=review_required, key=f"review_required_{doc_id}")
+
+            if new_review != review_required:
+                new_status = "Review Required" if new_review else "Pending"
+                live_doc_ref.update({"Status Mar": new_status})
+                st.success(f"✔️ Estado actualizado a: {new_status}")
+                st.session_state["refresh_timestamp"] = datetime.now().timestamp()
 
             comment_history = live_doc.get("comment", "") or ""
             if isinstance(comment_history, str) and comment_history.strip():
