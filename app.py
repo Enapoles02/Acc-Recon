@@ -131,16 +131,21 @@ def main():
         "Guadalupe": ["Mexico", "Peru", "Panama"]
     }
 
-    if 'country' in df.columns and df['country'].notna().any():
-        allowed = mapping.get(user, [c for c in df['country'].unique() if c not in sum(mapping.values(), [])])
-        df = df[df['country'].isin(allowed)]
-        if not is_admin and df.empty:
+    if 'country' in df.columns:
+        if is_admin:
+            allowed = df['country'].unique().tolist()
+        else:
+            allowed = mapping.get(user, [])
+        if allowed:
+            df = df[df['country'].isin(allowed)]
+        if not df.empty and not is_admin:
+            if df['country'].isna().all():
+                st.warning("La columna 'country' está vacía.")
+        elif df.empty and not is_admin:
             st.warning("No hay datos disponibles para tu país o usuario.")
-    else:
-        allowed = []
-        if not is_admin:
-            st.warning("No se encontró la columna 'country' o está vacía.")
-        df = df if is_admin else df.iloc[0:0]
+    elif not is_admin:
+        st.warning("No se encontró la columna 'country' y no se pueden aplicar filtros.")
+        df = df.iloc[0:0]
 
     st.sidebar.markdown("---")
     q = st.sidebar.text_input("Buscar cuenta")
