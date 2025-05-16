@@ -24,7 +24,6 @@ if not user:
     st.warning("Ingresa tu nombre de usuario para continuar.")
     st.stop()
 
-# ---------------- Inicializar Firebase ----------------
 @st.cache_resource
 def init_firebase():
     firebase_creds = st.secrets["firebase_credentials"]
@@ -38,7 +37,6 @@ def init_firebase():
 
 db, bucket = init_firebase()
 
-# ---------------- Funciones ----------------
 def load_data():
     docs = db.collection("reconciliation_records").stream()
     recs = []
@@ -65,17 +63,17 @@ def save_comment(doc_id, new_entry):
     updated = f"{previous}\n{new_entry}" if previous else new_entry
     doc_ref.update({"comment": updated})
 
-def upload_file(doc_id, uploaded_file):
-    blob_path = f"supporting_files/{doc_id}/{uploaded_file.name}"
+def upload_file_to_bucket(gl_account, uploaded_file):
+    blob_path = f"reconciliation_records/{gl_account}/{uploaded_file.name}"
     blob = bucket.blob(blob_path)
     blob.upload_from_file(uploaded_file, content_type=uploaded_file.type)
-    db.collection("reconciliation_records").document(doc_id).update({"file_url": blob.public_url})
+    return blob.public_url
 
 def log_upload(metadata):
     log_id = str(uuid.uuid4())
     db.collection("upload_logs").document(log_id).set(metadata)
 
-# ---------------- Carga de datos ----------------
+# ---------------- Cargar datos ----------------
 df = load_data()
 mapping_df = load_mapping()
 
@@ -121,7 +119,6 @@ else:
                 st.success("Archivo cargado correctamente")
                 st.session_state["refresh_timestamp"] = datetime.now().timestamp()
     df = load_data()
-
 # ---------------- Filtros ----------------
 unique_groups = df['ReviewGroup'].dropna().unique().tolist()
 selected_group = st.sidebar.selectbox("Filtrar por Review Group", ["Todos"] + sorted(unique_groups))
@@ -167,7 +164,9 @@ with cols[1]:
     if selected_index is not None:
         row = paginated_df.iloc[selected_index]
         doc_id = row['_id']
-        st.markdown(f"### Detalles de GL {row.get('GL Account')}")
+        gl_account = str(row.get("GL Account", "")).zfill(10)
+
+        st.markdown(f"### Detalles de GL {gl_account}")
         st.markdown(f"**GL NAME:** {row.get('GL NAME')}")
         st.markdown(f"**Balance:** {row.get('Balance  in EUR at 31/3', 'N/A')}")
         st.markdown(f"**País:** {row.get('Country', 'N/A')}")
@@ -182,12 +181,13 @@ with cols[1]:
 
         st.markdown("---")
         st.markdown("### 📁 Historial de cargas de esta cuenta")
-        log_docs = db.collection("upload_logs").where("gl_account", "==", row.get("GL Account")).stream()
+        log_docs = db.collection("upload_logs").where(filter=("gl_account", "==", gl_account)).stream()
         log_data = sorted([doc.to_dict() for doc in log_docs], key=lambda x: x.get("uploaded_at", ""), reverse=True)
         if log_data:
             st.markdown(f"🔁 **Reintentos:** {len(log_data)}")
             for log in log_data:
-                st.markdown(f"- 📎 **{log['file_name']}** | 👤 {log['user']} | 🕒 {log['uploaded_at']}")
+                file_url = f"https://storage.googleapis.com/{bucket.name}/reconciliation_records/{gl_account}/{log['file_name']}"
+                st.markdown(f"- 📎 **{log['file_name']}** | 👤 {log['user']} | 🕒 {log['uploaded_at']} | [🔽 Descargar]({file_url})")
         else:
             st.info("No hay archivos cargados para esta cuenta.")
 
@@ -202,7 +202,15 @@ with cols[1]:
         uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{doc_id}")
         if uploaded_file:
             if st.button("✅ Confirmar carga de archivo", key=f"confirm_upload_{doc_id}"):
-                upload_file(doc_id, uploaded_file)
+                file_url = upload_file_to_bucket(gl_account, uploaded_file)
+                db.collection("reconciliation_records").document(doc_id).update({"file_url": file_url})
+                now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
+                log_upload({
+                    "file_name": uploaded_file.name,
+                    "uploaded_at": now,
+                    "user": user,
+                    "gl_account": gl_account
+                })
                 st.success("Archivo cargado correctamente")
                 st.session_state["refresh_timestamp"] = datetime.now().timestamp()
 
