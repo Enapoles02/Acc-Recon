@@ -116,7 +116,6 @@ df["Region"] = df["Country"].apply(lambda x: "NAMER" if x in ["Canada", "United 
 
 # Vista seleccionable
 modo = st.sidebar.selectbox("Selecciona vista:", ["📈 Dashboard KPI", "📋 Visor GL"])
-
 # -------------------------------
 # KPI DASHBOARD
 # -------------------------------
@@ -141,6 +140,23 @@ if modo == "📈 Dashboard KPI":
     reviewer_group = st.sidebar.selectbox("👥 Reviewer Group", ["Todos"] + reviewer_options)
     if reviewer_group != "Todos":
         filtered_df = filtered_df[filtered_df["ReviewGroup"] == reviewer_group]
+
+    # --- KPI visual de revisión requerida ---
+    review_count = filtered_df[filtered_df["Status Mar"] == "Review Required"].shape[0]
+    if review_count > 0:
+        st.markdown(f'''
+            <div style='
+                background-color:#fff3cd;
+                color:#856404;
+                padding:15px;
+                border-left: 5px solid #ffc107;
+                border-radius:5px;
+                margin-top:10px;
+                font-size:18px;
+            '>
+            ⚠️ <strong>{review_count}</strong> cuentas están marcadas como <strong>Review Required</strong>.
+            </div>
+        ''', unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
 
@@ -201,14 +217,10 @@ if modo == "📈 Dashboard KPI":
             st.info("No hay datos suficientes para la gráfica de barras.")
 
     st.markdown("🔍 Este dashboard refleja el estado de conciliaciones según los filtros aplicados.")
-
-
-
 # -------------------------------
 # VISOR GL
 # -------------------------------
 if modo == "📋 Visor GL":
-    # Filtrar por país según usuario
     user_countries = USER_COUNTRY_MAPPING.get(user, [])
     if user_countries != "ALL":
         df = df[df["Country"].isin(user_countries)]
@@ -232,7 +244,6 @@ if modo == "📋 Visor GL":
     paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
     selected_index = st.session_state.get("selected_index", None)
 
-    # Filtros por país, entidad y estado
     with st.sidebar:
         st.markdown("### 🔎 Filtros")
         unique_countries = sorted(df["Country"].dropna().unique())
@@ -249,14 +260,13 @@ if modo == "📋 Visor GL":
         df = df[df["Status Mar"].isin(selected_status)]
 
     def status_color(status):
-        color_map = {
+        return {
             'On time': '🟢',
             'Delayed': '🔴',
             'Pending': '⚪️',
             'Completed/Delayed': '🟢',
             'Review Required': '🟡'
-        }
-        return color_map.get(status, '⚪️')
+        }.get(status, '⚪️')
 
     cols = st.columns([3, 9])
     with cols[0]:
@@ -276,7 +286,7 @@ if modo == "📋 Visor GL":
     with cols[1]:
         if selected_index is not None:
             row = paginated_df.iloc[selected_index]
-            doc_id = row['_id']
+            doc_id = row["_id"]
             gl_account = str(row.get("GL Account", "")).zfill(10)
 
             st.markdown(f"### Detalles de GL {gl_account}")
@@ -318,7 +328,6 @@ if modo == "📋 Visor GL":
             current_status = live_doc.get("Status Mar", "Pending")
             st.markdown(f"**status:** {current_status}")
 
-            # Nuevo botón de revisión
             review_required = current_status == "Review Required"
             new_review = st.checkbox("⚠️ Review Required", value=review_required, key=f"review_required_{doc_id}")
 
