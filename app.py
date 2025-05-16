@@ -241,8 +241,7 @@ with cols[1]:
 
         comment_history = live_doc.get("comment", "") or ""
         if isinstance(comment_history, str) and comment_history.strip():
-            for line in comment_history.strip().split("
-"):
+            for line in comment_history.strip().split("/n"):
                 st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
 
         st.markdown("---")
