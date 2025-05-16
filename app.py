@@ -106,15 +106,14 @@ def main():
         with st.expander("🛠 Depuración de columnas"):
             st.write("**Columnas en df (desde Firebase):**")
             st.write(df.columns.tolist())
-            st.write(df.head())
+            st.dataframe(df, use_container_width=True)
             st.write("**Columnas en map_df (desde Mapping.csv):**")
             st.write(map_df.columns.tolist())
-            st.write(map_df.head())
+            st.dataframe(map_df, use_container_width=True)
 
     if "GL Account" in df.columns and "GL Account" in map_df.columns:
         df["GL Account"] = df["GL Account"].astype(str).str.strip()
         map_df["GL Account"] = map_df["GL Account"].astype(str).str.strip()
-
         df = df.merge(map_df, on="GL Account", how="left")
         df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
     else:
@@ -165,7 +164,7 @@ def main():
         sub = df.iloc[st.session_state['start']:st.session_state['start'] + 5]
         for _, r in sub.iterrows():
             key = r['_id']
-            label = f"{r['gl_name']} - {r['GL Account']} ({abbr(r['country'])})"
+            label = f"{r.get('gl_name', '')} - {r.get('GL Account', '')} ({abbr(r.get('country', ''))})"
             if st.button(label, key=key):
                 st.session_state['selected'] = key
 
