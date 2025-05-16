@@ -188,7 +188,19 @@ if modo == "📈 Dashboard KPI":
     st.markdown("🔍 Este dashboard refleja el estado de conciliaciones según los filtros aplicados.")
 
 
+...
+# (todo el código anterior igual hasta antes del if modo == "📋 Visor GL")
+...
+
+# -------------------------------
+# VISOR GL
+# -------------------------------
 if modo == "📋 Visor GL":
+    # Filtrar por país según usuario
+    user_countries = USER_COUNTRY_MAPPING.get(user, [])
+    if user_countries != "ALL":
+        df = df[df["Country"].isin(user_countries)]
+
     records_per_page = 5
     max_pages = (len(df) - 1) // records_per_page + 1
     if "current_page" not in st.session_state:
