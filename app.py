@@ -187,11 +187,6 @@ if modo == "📈 Dashboard KPI":
 
     st.markdown("🔍 Este dashboard refleja el estado de conciliaciones según los filtros aplicados.")
 
-
-...
-# (todo el código anterior igual hasta antes del if modo == "📋 Visor GL")
-...
-
 # -------------------------------
 # VISOR GL
 # -------------------------------
@@ -235,7 +230,10 @@ if modo == "📋 Visor GL":
             gl_account = str(row.get("GL Account", "")).zfill(10)
             status = row.get("Status Mar", "Pending")
             color = status_color(status)
-            label = f"{color} {gl_account} - {row.get('GL NAME', 'Sin nombre')}"
+            gl_name = str(row.get("GL NAME", "Sin nombre"))
+            if gl_name is None or gl_name == "Ellipsis" or gl_name == str(...):
+                gl_name = "Sin nombre"
+            label = f"{color} {gl_account} - {gl_name}"
             if st.button(label, key=f"btn_{i}"):
                 st.session_state.selected_index = i
                 selected_index = i
