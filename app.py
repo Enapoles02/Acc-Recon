@@ -8,7 +8,6 @@ import uuid
 from datetime import datetime, timedelta
 import pytz
 
-# ---------------- Configuración inicial ----------------
 st.set_page_config(page_title="Reconciliación GL", layout="wide")
 st.title("📊 Dashboard de Reconciliación GL")
 
@@ -69,8 +68,7 @@ def upload_file_to_bucket(gl_account, uploaded_file):
     blob_path = f"reconciliation_records/{gl_account}/{uploaded_file.name}"
     blob = bucket.blob(blob_path)
     blob.upload_from_file(uploaded_file, content_type=uploaded_file.type)
-    url = blob.generate_signed_url(expiration=timedelta(hours=2))
-    return url
+    return blob.generate_signed_url(expiration=timedelta(hours=2))
 
 def log_upload(metadata):
     log_id = str(uuid.uuid4())
@@ -93,9 +91,18 @@ if df.empty:
     st.info("No hay datos cargados.")
     st.stop()
 
-# ---------------- Evaluación automática del estado "Status Mar" ----------------
+# ---------------- Lógica de WD1 y WD4 ----------------
 now = datetime.now(pytz.timezone("America/Mexico_City"))
 today = pd.Timestamp(now.date())
+
+def get_workdays(year, month):
+    first_day = pd.Timestamp(f"{year}-{month:02d}-01")
+    workdays = pd.date_range(first_day, first_day + BDay(10), freq=BDay())
+    return workdays
+
+workdays = get_workdays(today.year, today.month)
+day_is_wd1 = today == workdays[0]
+day_is_wd4 = len(workdays) >= 4 and today == workdays[3]
 
 if USER_COUNTRY_MAPPING.get(user) == "ALL":
     if st.sidebar.checkbox("Estoy seguro que quiero reiniciar el mes"):
@@ -120,7 +127,7 @@ else:
 if USER_COUNTRY_MAPPING.get(user) == "ALL":
     st.markdown(f"🗓️ **Fecha límite usada para evaluación:** `{deadline_date.strftime('%Y-%m-%d')}`")
 
-if now.day == 1:
+if day_is_wd1:
     for doc in db.collection("reconciliation_records").stream():
         db.collection("reconciliation_records").document(doc.id).update({
             "Completed Mar": "No",
@@ -129,41 +136,20 @@ if now.day == 1:
             "Deadline Used": ""
         })
 
-if now.day in [1, 4]:
+if day_is_wd4:
     def evaluate_status(row):
-        if str(row.get("Completed Mar", "")).strip().upper() == "YES":
-            return "On time"
-        elif today > deadline_date:
-            return "Delayed"
-        else:
-            return "Pending"
+        completed = str(row.get("Completed Mar", "")).strip().upper()
+        return "On time" if completed == "YES" else "Delayed"
 
     df["Status Mar"] = df.apply(evaluate_status, axis=1)
 
     for _, row in df.iterrows():
-        doc_id = row["_id"]
-        status = row["Status Mar"]
-        db.collection("reconciliation_records").document(doc_id).update({
-            "Status Mar": status,
+        db.collection("reconciliation_records").document(row["_id"]).update({
+            "Status Mar": row["Status Mar"],
             "Deadline Used": deadline_date.strftime("%Y-%m-%d")
         })
-# 🔁 Si ya pasó la fecha límite, forzar "Delayed" en todos los incompletos
-if today > deadline_date:
-    def force_delayed(row):
-        completed = str(row.get("Completed Mar", "")).strip().upper()
-        return "Delayed" if completed != "YES" else row.get("Status Mar", "On time")
-
-    df["Status Mar"] = df.apply(force_delayed, axis=1)
-
-    for _, row in df.iterrows():
-        if row["Status Mar"] == "Delayed":
-            db.collection("reconciliation_records").document(row["_id"]).update({
-                "Status Mar": "Delayed"
-            })
 
 # ---------------- Filtros ----------------
-
-# Filtros existentes
 unique_groups = df['ReviewGroup'].dropna().unique().tolist()
 selected_group = st.sidebar.selectbox("Filtrar por Review Group", ["Todos"] + sorted(unique_groups))
 if selected_group != "Todos":
@@ -178,7 +164,6 @@ selected_status = st.sidebar.selectbox("Filtrar por Status Mar", ["Todos"] + sor
 if selected_status != "Todos":
     df = df[df['Status Mar'] == selected_status]
 
-# Mostrar color en la lista según Status Mar
 def status_color(status):
     return {
         'On time': '🟢',
@@ -242,10 +227,9 @@ with cols[1]:
             new_status = "Yes" if new_check else "No"
             now = datetime.now(pytz.timezone("America/Mexico_City"))
             timestamp_str = now.strftime("%Y-%m-%d %H:%M:%S")
-
             today = pd.Timestamp(now.date())
             wd3 = pd.Timestamp(today.replace(day=1)) + BDay(2)
-            status_result = "On time" if today <= wd3 else "Delayed"
+            status_result = "On time" if today <= deadline_date else "Delayed"
 
             live_doc_ref.update({
                 "Completed Mar": new_status,
@@ -261,7 +245,7 @@ with cols[1]:
 
         comment_history = live_doc.get("comment", "") or ""
         if isinstance(comment_history, str) and comment_history.strip():
-            for line in comment_history.strip().split("/n"):
+            for line in comment_history.strip().split("\n"):
                 st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
 
         st.markdown("---")
