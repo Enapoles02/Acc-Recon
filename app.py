@@ -181,7 +181,7 @@ if modo == "📈 Dashboard KPI":
                 color="Status",
                 color_discrete_map={
                     "Completed": "green",
-                    "Pending": "gray",
+                    "Pending": "lightgray",
                     "Review Required": "gold"
                 }
             )
