@@ -4,6 +4,8 @@ import firebase_admin
 from firebase_admin import credentials, firestore, storage
 import uuid
 import io
+from datetime import datetime
+import pytz
 
 # ---------------- Configuracion inicial ----------------
 st.set_page_config(page_title="Reconciliación GL", layout="wide")
@@ -51,8 +53,12 @@ def load_data():
         recs.append(flat_data)
     return pd.DataFrame(recs)
 
-def save_comment(doc_id, comment):
-    db.collection("reconciliation_records").document(doc_id).update({"comment": comment})
+def save_comment(doc_id, new_entry):
+    doc_ref = db.collection("reconciliation_records").document(doc_id)
+    doc = doc_ref.get()
+    previous = doc.to_dict().get("comment", "") if doc.exists else ""
+    updated = f"{previous}\n{new_entry}" if previous else new_entry
+    doc_ref.update({"comment": updated})
 
 def upload_file(doc_id, uploaded_file):
     blob_path = f"supporting_files/{doc_id}/{uploaded_file.name}"
@@ -114,16 +120,19 @@ with cols[1]:
         st.markdown(f"**País:** {row.get('Country', 'N/A')}")
         st.markdown(f"**Entity:** {row.get('HFM CODE Entity', 'N/A')}")
 
-        # Mostrar comentarios previos estilo burbuja
+        # Mostrar comentarios previos estilo burbuja con hora
         comment_history = row.get("comment", "")
         if comment_history:
-            st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {comment_history}</div>", unsafe_allow_html=True)
+            for line in comment_history.strip().split("\n"):
+                st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
 
         # Campo para nuevo comentario
         new_comment = st.text_area("Nuevo comentario", key=f"comment_input_{row['_id']}")
         if st.button("💾 Guardar comentario", key=f"save_{row['_id']}"):
-            full_comment = f"{comment_history}\n{user}: {new_comment}" if comment_history else f"{user}: {new_comment}"
-            save_comment(row['_id'], full_comment)
+            tz = pytz.timezone("America/Mexico_City")
+            now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+            entry = f"{user} ({now}): {new_comment}"
+            save_comment(row['_id'], entry)
             st.success("Comentario guardado")
 
         uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{row['_id']}")
