@@ -38,6 +38,15 @@ def init_firebase():
 
 db, bucket = init_firebase()
 
+def get_stored_deadline_day():
+    doc = db.collection("config").document("general_settings").get()
+    if doc.exists and "deadline_day" in doc.to_dict():
+        return int(doc.to_dict()["deadline_day"])
+    return 3  # Default to WD3
+
+def set_stored_deadline_day(day: int):
+    db.collection("config").document("general_settings").set({"deadline_day": day}, merge=True)
+
 def load_data():
     docs = db.collection("reconciliation_records").stream()
     recs = []
@@ -105,8 +114,12 @@ day_is_wd4 = len(workdays) >= 4 and today == workdays[3]
 if USER_COUNTRY_MAPPING.get(user) == "ALL":
     st.sidebar.markdown("### ⚙️ Configuración de Fecha Límite")
 
-    custom_day = st.sidebar.number_input("Día límite para completar (por default WD3)", min_value=1, max_value=31, value=3)
+    current_deadline = get_stored_deadline_day()
+    custom_day = st.sidebar.number_input("Día límite para completar (por default WD3)", min_value=1, max_value=31, value=current_deadline)
     deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(custom_day - 1)
+
+    if custom_day != current_deadline:
+        set_stored_deadline_day(custom_day)
 
     st.sidebar.info(f"📅 Fecha límite considerada: {deadline_date.strftime('%Y-%m-%d')}")
     st.markdown(f"🗓️ **Fecha límite usada para evaluación:** `{deadline_date.strftime('%Y-%m-%d')}`")
@@ -123,17 +136,18 @@ if USER_COUNTRY_MAPPING.get(user) == "ALL":
             st.sidebar.success("✅ Todos los registros han sido reiniciados.")
 
     if st.sidebar.button("🔄 Forzar evaluación de Status Mar"):
-        def evaluate_status_manual(row):
-            completed = str(row.get("Completed Mar", "")).strip().upper()
-            return "On time" if completed == "YES" else "Delayed"
+        with st.spinner("Recalculando estados de conciliación..."):
+            def evaluate_status_manual(row):
+                completed = str(row.get("Completed Mar", "")).strip().upper()
+                return "On time" if completed == "YES" else "Delayed"
 
-        df["Status Mar"] = df.apply(evaluate_status_manual, axis=1)
+            df["Status Mar"] = df.apply(evaluate_status_manual, axis=1)
 
-        for _, row in df.iterrows():
-            db.collection("reconciliation_records").document(row["_id"]).update({
-                "Status Mar": row["Status Mar"],
-                "Deadline Used": deadline_date.strftime("%Y-%m-%d")
-            })
+            for _, row in df.iterrows():
+                db.collection("reconciliation_records").document(row["_id"]).update({
+                    "Status Mar": row["Status Mar"],
+                    "Deadline Used": deadline_date.strftime("%Y-%m-%d")
+                })
 
         st.sidebar.success("🔄 Se recalculó el estado de todos los GL.")
 else:
