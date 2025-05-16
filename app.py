@@ -131,6 +131,49 @@ df["Region"] = df["Country"].apply(lambda x: "NAMER" if x in ["Canada", "United 
 
 # Selección de vista
 modo = st.sidebar.selectbox("Selecciona vista:", ["📈 Dashboard KPI", "📋 Visor GL"])
+
+# Opciones exclusivas para ADMIN
+if user == "ADMIN":
+    st.sidebar.markdown("## ⚙️ Opciones de Admin")
+
+    # Cambiar día límite de WD
+    current_deadline = get_stored_deadline_day()
+    new_deadline = st.sidebar.number_input("📅 Día límite (WD)", min_value=1, max_value=10, value=current_deadline, step=1)
+    if new_deadline != current_deadline:
+        set_stored_deadline_day(new_deadline)
+        st.sidebar.success(f"Día límite actualizado a WD{new_deadline}")
+
+    # Botón para reiniciar el mes (resetear estatus)
+    if st.sidebar.button("♻️ Resetear estados del mes"):
+        for doc in db.collection("reconciliation_records").stream():
+            doc.reference.update({
+                "Completed Mar": "No",
+                "Status Mar": "Pending",
+                "Completed Timestamp": firestore.DELETE_FIELD,
+                "Deadline Used": firestore.DELETE_FIELD
+            })
+        st.sidebar.success("Todos los estados fueron reiniciados.")
+
+    # Botón para forzar evaluación de estatus
+    if st.sidebar.button("📌 Forzar evaluación de 'On time' / 'Delayed'"):
+        wd = get_stored_deadline_day()
+        today = pd.Timestamp(datetime.now(pytz.timezone("America/Mexico_City")).date())
+        deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(wd - 1)
+
+        for doc in db.collection("reconciliation_records").stream():
+            data = doc.to_dict()
+            completed = data.get("Completed Mar", "No").strip().upper()
+            if completed == "YES":
+                completed_date_str = data.get("Completed Timestamp")
+                if completed_date_str:
+                    completed_date = pd.to_datetime(completed_date_str)
+                    status = "On time" if completed_date <= deadline_date else "Completed/Delayed"
+                    doc.reference.update({
+                        "Status Mar": status,
+                        "Deadline Used": deadline_date.strftime("%Y-%m-%d")
+                    })
+        st.sidebar.success("Evaluación de estado completada.")
+
 # -------------------------------
 # KPI DASHBOARD
 # -------------------------------
