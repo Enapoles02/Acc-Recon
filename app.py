@@ -122,7 +122,7 @@ with cols[1]:
 
         # Mostrar comentarios previos estilo burbuja con hora
         comment_history = row.get("comment", "")
-        if comment_history:
+        if isinstance(comment_history, str) and comment_history.strip():
             for line in comment_history.strip().split("\n"):
                 st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
 
