@@ -74,7 +74,6 @@ def log_upload(metadata):
     log_id = str(uuid.uuid4())
     db.collection("upload_logs").document(log_id).set(metadata)
 
-# ---------------- Cargar datos ----------------
 df = load_data()
 mapping_df = load_mapping()
 
@@ -91,7 +90,6 @@ if df.empty:
     st.info("No hay datos cargados.")
     st.stop()
 
-# ---------------- Lógica de WD1 y WD4 ----------------
 now = datetime.now(pytz.timezone("America/Mexico_City"))
 today = pd.Timestamp(now.date())
 
@@ -105,6 +103,14 @@ day_is_wd1 = today == workdays[0]
 day_is_wd4 = len(workdays) >= 4 and today == workdays[3]
 
 if USER_COUNTRY_MAPPING.get(user) == "ALL":
+    st.sidebar.markdown("### ⚙️ Configuración de Fecha Límite")
+
+    custom_day = st.sidebar.number_input("Día límite para completar (por default WD3)", min_value=1, max_value=31, value=3)
+    deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(custom_day - 1)
+
+    st.sidebar.info(f"📅 Fecha límite considerada: {deadline_date.strftime('%Y-%m-%d')}")
+    st.markdown(f"🗓️ **Fecha límite usada para evaluación:** `{deadline_date.strftime('%Y-%m-%d')}`")
+
     if st.sidebar.checkbox("Estoy seguro que quiero reiniciar el mes"):
         if st.sidebar.button("🔁 Forzar reinicio del mes"):
             for doc in db.collection("reconciliation_records").stream():
@@ -114,7 +120,8 @@ if USER_COUNTRY_MAPPING.get(user) == "ALL":
                     "Status Mar": "Pending",
                     "Deadline Used": ""
                 })
-            st.sidebar.success("Todos los registros han sido reiniciados.")
+            st.sidebar.success("✅ Todos los registros han sido reiniciados.")
+
     if st.sidebar.button("🔄 Forzar evaluación de Status Mar"):
         def evaluate_status_manual(row):
             completed = str(row.get("Completed Mar", "")).strip().upper()
@@ -128,18 +135,9 @@ if USER_COUNTRY_MAPPING.get(user) == "ALL":
                 "Deadline Used": deadline_date.strftime("%Y-%m-%d")
             })
 
-        st.sidebar.success("Se recalculó el estado de todos los GL.")
-
-if USER_COUNTRY_MAPPING.get(user) == "ALL":
-    st.sidebar.markdown("### ⚙️ Configuración de Fecha Límite")
-    custom_day = st.sidebar.number_input("Día límite para completar (por default WD3)", min_value=1, max_value=31, value=3)
-    deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(custom_day - 1)
-    st.sidebar.info(f"Fecha límite considerada: {deadline_date.strftime('%Y-%m-%d')}")
+        st.sidebar.success("🔄 Se recalculó el estado de todos los GL.")
 else:
     deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(2)
-
-if USER_COUNTRY_MAPPING.get(user) == "ALL":
-    st.markdown(f"🗓️ **Fecha límite usada para evaluación:** `{deadline_date.strftime('%Y-%m-%d')}`")
 
 if day_is_wd1:
     for doc in db.collection("reconciliation_records").stream():
@@ -162,7 +160,6 @@ if day_is_wd4:
             "Status Mar": row["Status Mar"],
             "Deadline Used": deadline_date.strftime("%Y-%m-%d")
         })
-
 # ---------------- Filtros ----------------
 unique_groups = df['ReviewGroup'].dropna().unique().tolist()
 selected_group = st.sidebar.selectbox("Filtrar por Review Group", ["Todos"] + sorted(unique_groups))
@@ -242,7 +239,6 @@ with cols[1]:
             now = datetime.now(pytz.timezone("America/Mexico_City"))
             timestamp_str = now.strftime("%Y-%m-%d %H:%M:%S")
             today = pd.Timestamp(now.date())
-            wd3 = pd.Timestamp(today.replace(day=1)) + BDay(2)
             status_result = "On time" if today <= deadline_date else "Delayed"
 
             live_doc_ref.update({
