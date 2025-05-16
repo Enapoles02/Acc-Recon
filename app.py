@@ -183,7 +183,7 @@ with cols[1]:
         st.markdown("### 📁 Historial de cargas de esta cuenta")
         from google.cloud.firestore_v1 import FieldFilter
 
-log_docs = db.collection("upload_logs").where(filter=FieldFilter("gl_account", "==", gl_account)).stream()
+        log_docs = db.collection("upload_logs").where(filter=FieldFilter("gl_account", "==", gl_account)).stream()
 
         log_data = sorted([doc.to_dict() for doc in log_docs], key=lambda x: x.get("uploaded_at", ""), reverse=True)
         if log_data:
