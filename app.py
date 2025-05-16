@@ -102,6 +102,13 @@ def main():
     df.columns = df.columns.str.strip().str.replace(r'\s+', ' ', regex=True)
     map_df.columns = map_df.columns.str.strip().str.replace(r'\s+', ' ', regex=True)
 
+    if is_admin:
+        with st.expander("🛠 Depuración de columnas"):
+            st.write("**Columnas en df (desde Firebase):**")
+            st.write(df.columns.tolist())
+            st.write("**Columnas en map_df (desde Mapping.csv):**")
+            st.write(map_df.columns.tolist())
+
     if "GL Account" in df.columns and "GL Account" in map_df.columns:
         df["GL Account"] = df["GL Account"].astype(str).str.strip()
         map_df["GL Account"] = map_df["GL Account"].astype(str).str.strip()
