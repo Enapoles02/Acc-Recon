@@ -135,36 +135,33 @@ if USER_COUNTRY_MAPPING.get(user) == "ALL":
                 })
             st.sidebar.success("✅ Todos los registros han sido reiniciados.")
 
-    if st.sidebar.button("🔄 Forzar evaluación de Status Mar"):
-        with st.spinner("Recalculando estados de conciliación..."):
-            def evaluate_status_manual(row):
-                completed = str(row.get("Completed Mar", "")).strip().upper()
-                timestamp_str = str(row.get("Completed Timestamp", "")).strip()
+if st.sidebar.button("🔄 Forzar evaluación de Status Mar"):
+    with st.spinner("Recalculando y sobrescribiendo en Firebase..."):
+        records = db.collection("reconciliation_records").stream()
+        for doc in records:
+            data = doc.to_dict()
+            completed = str(data.get("Completed Mar", "")).strip().upper()
+            timestamp_str = str(data.get("Completed Timestamp", "")).strip()
 
-                if completed == "YES":
-                    if timestamp_str:
-                        try:
-                            completed_ts = pd.to_datetime(timestamp_str)
-                            if completed_ts <= deadline_date:
-                                return "On time"
-                            else:
-                                return "Completed/Delayed"
-                        except Exception:
-                            return "Completed/Delayed"
-                    else:
-                        return "Completed/Delayed"
+            if completed == "YES":
+                if timestamp_str:
+                    try:
+                        completed_ts = pd.to_datetime(timestamp_str)
+                        status = "On time" if completed_ts <= deadline_date else "Completed/Delayed"
+                    except Exception:
+                        status = "Completed/Delayed"
                 else:
-                    return "Delayed"
+                    status = "Completed/Delayed"
+            else:
+                status = "Delayed"
 
-            df["Status Mar"] = df.apply(evaluate_status_manual, axis=1)
+            db.collection("reconciliation_records").document(doc.id).update({
+                "Status Mar": status,
+                "Deadline Used": deadline_date.strftime("%Y-%m-%d")
+            })
 
-            for _, row in df.iterrows():
-                db.collection("reconciliation_records").document(row["_id"]).update({
-                    "Status Mar": row["Status Mar"],
-                    "Deadline Used": deadline_date.strftime("%Y-%m-%d")
-                })
+    st.sidebar.success("✅ Se sobrescribió el campo Status Mar en Firestore.")
 
-        st.sidebar.success("🔄 Se recalculó el estado de todos los GL.")
 else:
     deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(2)
 
