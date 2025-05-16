@@ -52,6 +52,14 @@ def load_data():
         recs.append(flat_data)
     return pd.DataFrame(recs)
 
+@st.cache_data
+def load_mapping():
+    url = "https://raw.githubusercontent.com/Enapoles02/Acc-Recon/main/Mapping.csv"
+    df_map = pd.read_csv(url, dtype=str)
+    df_map.columns = df_map.columns.str.strip().str.replace(r'\s+', ' ', regex=True)
+    df_map = df_map.rename(columns={"Group": "ReviewGroup"})
+    return df_map
+
 def save_comment(doc_id, new_entry):
     doc_ref = db.collection("reconciliation_records").document(doc_id)
     doc = doc_ref.get()
@@ -64,24 +72,18 @@ def upload_file(doc_id, uploaded_file):
     blob = bucket.blob(blob_path)
     blob.upload_from_file(uploaded_file, content_type=uploaded_file.type)
     db.collection("reconciliation_records").document(doc_id).update({"file_url": blob.public_url})
-    
-@st.cache_data
-def load_mapping():
-    url = "https://raw.githubusercontent.com/Enapoles02/Acc-Recon/main/Mapping.csv"
-    df_map = pd.read_csv(url, dtype=str)
-    df_map.columns = df_map.columns.str.strip().str.replace(r'\s+', ' ', regex=True)
-    return df_map
 
 # ---------------- Carga y Filtro de Datos ----------------
 df = load_data()
 mapping_df = load_mapping()
 
-if 'GL Account' in df.columns and 'GL Account' in mapping_df.columns:
-    df['GL Account'] = df['GL Account'].astype(str).str.strip()
-    mapping_df['GL Account'] = mapping_df['GL Account'].astype(str).str.strip()
-    df = df.merge(mapping_df, on='GL Account', how='left')
-    df['ReviewGroup'] = df['ReviewGroup'].fillna('Others')
-
+if "GL Account" in df.columns and "GL Account" in mapping_df.columns:
+    df["GL Account"] = df["GL Account"].astype(str).str.strip()
+    mapping_df["GL Account"] = mapping_df["GL Account"].astype(str).str.strip()
+    df = df.merge(mapping_df, on="GL Account", how="left")
+    df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
+else:
+    st.warning("No se pudo hacer el merge con Mapping.csv. Revisa los nombres de las columnas.")
 
 if df.empty:
     st.info("No hay datos cargados.")
@@ -135,6 +137,7 @@ with cols[1]:
         st.markdown(f"**Balance:** {row.get('Balance  in EUR at 31/3', 'N/A')}")
         st.markdown(f"**País:** {row.get('Country', 'N/A')}")
         st.markdown(f"**Entity:** {row.get('HFM CODE Entity', 'N/A')}")
+        st.markdown(f"**Review Group:** {row.get('ReviewGroup', 'Others')}")
 
         # Refrescar el comentario directamente del documento
         live_doc = db.collection("reconciliation_records").document(doc_id).get().to_dict()
