@@ -140,34 +140,32 @@ if modo == "📈 Dashboard KPI":
 
     col1, col2 = st.columns(2)
 
-with col1:
-    st.subheader("📌 Estado general (Pending vs Completed)")
+    with col1:
+        st.subheader("📌 Estado general (Pending vs Completed)")
 
-    pie_data = filtered_df[filtered_df["Status Mar"].isin(["Pending", "On time", "Completed/Delayed"])].copy()
-    pie_data["Status Simplified"] = pie_data["Status Mar"].apply(
-        lambda x: "Completed" if x in ["On time", "Completed/Delayed"] else "Pending"
-    )
-
-    if not pie_data.empty:
-        pie_counts = pie_data["Status Simplified"].value_counts().reset_index()
-        pie_counts.columns = ["Status", "Count"]
-
-        pie_fig = px.pie(
-            pie_counts,
-            names="Status",
-            values="Count",
-            title="Estado General",
-            hover_data=["Count"]
+        pie_data = filtered_df[filtered_df["Status Mar"].isin(["Pending", "On time", "Completed/Delayed"])].copy()
+        pie_data["Status Simplified"] = pie_data["Status Mar"].apply(
+            lambda x: "Completed" if x in ["On time", "Completed/Delayed"] else "Pending"
         )
-        pie_fig.update_traces(
-            textinfo='label+value+percent',
-            hovertemplate='%{label}: %{value} cuentas (%{percent})'
-        )
-        st.plotly_chart(pie_fig, use_container_width=True)
-    else:
-        st.info("No hay datos suficientes para la gráfica de pastel.")
 
+        if not pie_data.empty:
+            pie_counts = pie_data["Status Simplified"].value_counts().reset_index()
+            pie_counts.columns = ["Status", "Count"]
 
+            pie_fig = px.pie(
+                pie_counts,
+                names="Status",
+                values="Count",
+                title="Estado General",
+                hover_data=["Count"]
+            )
+            pie_fig.update_traces(
+                textinfo='label+value+percent',
+                hovertemplate='%{label}: %{value} cuentas (%{percent})'
+            )
+            st.plotly_chart(pie_fig, use_container_width=True)
+        else:
+            st.info("No hay datos suficientes para la gráfica de pastel.")
 
     with col2:
         st.subheader("⏱️ Desempeño (Solo líneas completadas)")
@@ -183,7 +181,7 @@ with col1:
         else:
             st.info("No hay datos suficientes para la gráfica de barras.")
 
-    st.markdown("🔍 Este dashboard refleja el estado de conciliaciones según los filtros aplicados.")
+     st.markdown("🔍 Este dashboard refleja el estado de conciliaciones según los filtros aplicados.")
 if modo == "📋 Visor GL":
     records_per_page = 5
     max_pages = (len(df) - 1) // records_per_page + 1
