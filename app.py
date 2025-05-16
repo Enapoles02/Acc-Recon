@@ -277,9 +277,9 @@ with cols[1]:
             timestamp_str = now.strftime("%Y-%m-%d %H:%M:%S")
 
             if new_check:
-            status_result = "On time" if pd.Timestamp(now).tz_localize(None) <= deadline_date.tz_localize(None) else "Completed/Delayed"
+                status_result = "On time" if pd.Timestamp(now).tz_localize(None) <= deadline_date.tz_localize(None) else "Completed/Delayed"
             else:
-            status_result = "Pending" if pd.Timestamp(now).tz_localize(None) <= deadline_date.tz_localize(None) else "Delayed"
+                status_result = "Pending" if pd.Timestamp(now).tz_localize(None) <= deadline_date.tz_localize(None) else "Delayed"
 
 
             live_doc_ref.update({
