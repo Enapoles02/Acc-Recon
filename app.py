@@ -8,7 +8,6 @@ import uuid
 from datetime import datetime, timedelta
 import pytz
 
-# ---------------- Configuración inicial ----------------
 st.set_page_config(page_title="Reconciliación GL", layout="wide")
 st.title("📊 Dashboard de Reconciliación GL")
 
@@ -39,6 +38,15 @@ def init_firebase():
 
 db, bucket = init_firebase()
 
+def get_stored_deadline_day():
+    doc = db.collection("config").document("general_settings").get()
+    if doc.exists and "deadline_day" in doc.to_dict():
+        return int(doc.to_dict()["deadline_day"])
+    return 3
+
+def set_stored_deadline_day(day: int):
+    db.collection("config").document("general_settings").set({"deadline_day": day}, merge=True)
+
 def load_data():
     docs = db.collection("reconciliation_records").stream()
     recs = []
@@ -58,7 +66,23 @@ def load_mapping():
     df_map = df_map.rename(columns={"Group": "ReviewGroup"})
     return df_map
 
-# ---------------- Cargar datos y preparar ----------------
+def save_comment(doc_id, new_entry):
+    doc_ref = db.collection("reconciliation_records").document(doc_id)
+    doc = doc_ref.get()
+    previous = doc.to_dict().get("comment", "") if doc.exists else ""
+    updated = f"{previous}\n{new_entry}" if previous else new_entry
+    doc_ref.update({"comment": updated})
+
+def upload_file_to_bucket(gl_account, uploaded_file):
+    blob_path = f"reconciliation_records/{gl_account}/{uploaded_file.name}"
+    blob = bucket.blob(blob_path)
+    blob.upload_from_file(uploaded_file, content_type=uploaded_file.type)
+    return blob.generate_signed_url(expiration=timedelta(hours=2))
+
+def log_upload(metadata):
+    log_id = str(uuid.uuid4())
+    db.collection("upload_logs").document(log_id).set(metadata)
+
 df = load_data()
 mapping_df = load_mapping()
 
@@ -75,10 +99,9 @@ if df.empty:
     st.info("No hay datos cargados.")
     st.stop()
 
-# ---------------- Selector de Vista ----------------
+# MODO DE VISTA
 modo = st.sidebar.selectbox("Selecciona vista:", ["📈 Dashboard KPI", "📋 Visor GL"])
 
-# ---------------- DASHBOARD KPI ----------------
 if modo == "📈 Dashboard KPI":
     st.header("📊 Dashboard KPI - Estado de Conciliaciones")
     df["Region"] = df["Country"].apply(lambda x: "NAMER" if x in ["Canada", "United States of America"] else "LATAM")
@@ -117,8 +140,12 @@ if modo == "📈 Dashboard KPI":
         st.bar_chart(bar_counts)
 
     st.markdown("🔍 Este dashboard refleja el estado de conciliaciones según los filtros aplicados.")
-# ---------------- VISOR GL ----------------
 elif modo == "📋 Visor GL":
+    now = datetime.now(pytz.timezone("America/Mexico_City"))
+    today = pd.Timestamp(now.date())
+    deadline_day = get_stored_deadline_day()
+    deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(deadline_day - 1)
+
     def status_color(status):
         return {
             'On time': '🟢',
@@ -126,6 +153,20 @@ elif modo == "📋 Visor GL":
             'Pending': '⚪️',
             'Completed/Delayed': '🟢🔴'
         }.get(status, '⚪️')
+
+    unique_groups = df['ReviewGroup'].dropna().unique().tolist()
+    selected_group = st.sidebar.selectbox("Filtrar por Review Group", ["Todos"] + sorted(unique_groups))
+    if selected_group != "Todos":
+        df = df[df['ReviewGroup'] == selected_group]
+
+    selected_country = st.sidebar.selectbox("Filtrar por Country", ["Todos"] + sorted(df['Country'].dropna().unique()))
+    if selected_country != "Todos":
+        df = df[df['Country'] == selected_country]
+
+    status_options = df['Status Mar'].dropna().unique().tolist()
+    selected_status = st.sidebar.selectbox("Filtrar por Status Mar", ["Todos"] + sorted(status_options))
+    if selected_status != "Todos":
+        df = df[df['Status Mar'] == selected_status]
 
     records_per_page = 5
     max_pages = (len(df) - 1) // records_per_page + 1
@@ -144,6 +185,7 @@ elif modo == "📋 Visor GL":
     start_idx = (current_page - 1) * records_per_page
     end_idx = start_idx + records_per_page
     paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
+
     selected_index = st.session_state.get("selected_index", None)
 
     cols = st.columns([3, 9])
@@ -180,22 +222,18 @@ elif modo == "📋 Visor GL":
 
             if new_check != completed_checked:
                 new_status = "Yes" if new_check else "No"
-                now = datetime.now(pytz.timezone("America/Mexico_City"))
                 timestamp_str = now.strftime("%Y-%m-%d %H:%M:%S")
 
-                admin_day = get_stored_deadline_day()
-                wd_admin = pd.Timestamp(today.replace(day=1)) + BDay(admin_day - 1)
-
                 if new_check:
-                    status_result = "On time" if pd.Timestamp(now).tz_localize(None) <= wd_admin else "Completed/Delayed"
+                    status_result = "On time" if today <= deadline_date else "Completed/Delayed"
                 else:
-                    status_result = "Pending" if pd.Timestamp(now).tz_localize(None) <= wd_admin else "Delayed"
+                    status_result = "Pending" if today <= deadline_date else "Delayed"
 
                 live_doc_ref.update({
                     "Completed Mar": new_status,
                     "Completed Timestamp": timestamp_str,
                     "Status Mar": status_result,
-                    "Deadline Used": wd_admin.strftime("%Y-%m-%d")
+                    "Deadline Used": deadline_date.strftime("%Y-%m-%d")
                 })
 
                 st.success(f"✔️ Estado actualizado: {new_status} | {status_result}")
@@ -228,12 +266,9 @@ elif modo == "📋 Visor GL":
 
             new_comment = st.text_area("Nuevo comentario", key=f"comment_input_{doc_id}")
             if st.button("💾 Guardar comentario", key=f"save_{doc_id}"):
-                now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
-                entry = f"{user} ({now}): {new_comment}"
-                doc_ref = db.collection("reconciliation_records").document(doc_id)
-                prev = doc_ref.get().to_dict().get("comment", "")
-                updated = f"{prev}\n{entry}" if prev else entry
-                doc_ref.update({"comment": updated})
+                now_str = now.strftime("%Y-%m-%d %H:%M:%S")
+                entry = f"{user} ({now_str}): {new_comment}"
+                save_comment(doc_id, entry)
                 st.success("Comentario guardado")
                 st.session_state["refresh_timestamp"] = datetime.now().timestamp()
 
@@ -242,10 +277,9 @@ elif modo == "📋 Visor GL":
                 if st.button("✅ Confirmar carga de archivo", key=f"confirm_upload_{doc_id}"):
                     file_url = upload_file_to_bucket(gl_account, uploaded_file)
                     db.collection("reconciliation_records").document(doc_id).update({"file_url": file_url})
-                    now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
                     log_upload({
                         "file_name": uploaded_file.name,
-                        "uploaded_at": now,
+                        "uploaded_at": now.strftime("%Y-%m-%d %H:%M:%S"),
                         "user": user,
                         "gl_account": gl_account,
                         "file_url": file_url
