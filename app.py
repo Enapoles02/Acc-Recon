@@ -217,12 +217,10 @@ if modo == "📋 Visor GL":
 
     def status_color(status):
         return {
-            'On time': '',
             'Delayed': '🔴',
             'Pending': '⚪️',
-            'Completed/Delayed': '',
             'Review Required': '🟡'
-        }.get(status, '⚪️').get(status, '⚪️')
+        }.get(status, '⚪️').get(status, '⚪️').get(status, '⚪️')
 
     cols = st.columns([3, 9])
     with cols[0]:
