@@ -216,11 +216,12 @@ if modo == "📋 Visor GL":
     selected_index = st.session_state.get("selected_index", None)
 
     def status_color(status):
-        return {
+        color_map = {
             'Delayed': '🔴',
             'Pending': '⚪️',
             'Review Required': '🟡'
-        }.get(status, '⚪️').get(status, '⚪️').get(status, '⚪️')
+        }
+        return color_map.get(status, '⚪️').get(status, '⚪️').get(status, '⚪️').get(status, '⚪️')
 
     cols = st.columns([3, 9])
     with cols[0]:
