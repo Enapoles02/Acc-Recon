@@ -163,10 +163,10 @@ def main():
             st.session_state['start'] += 1
         sub = df.iloc[st.session_state['start']:st.session_state['start'] + 5]
         for _, r in sub.iterrows():
-            key = r['_id']
+            key = f"{r['_id']}_{r.get('GL Account', '')}_{r.get('country', '')}"
             label = f"{r.get('gl_name', '')} - {r.get('GL Account', '')} ({abbr(r.get('country', ''))})"
             if st.button(label, key=key):
-                st.session_state['selected'] = key
+                st.session_state['selected'] = r['_id']
 
     with colR:
         sel = st.session_state.get('selected')
