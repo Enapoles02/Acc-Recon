@@ -80,6 +80,7 @@ mapping_df = load_mapping()
 if "GL Account" in df.columns and "GL Account" in mapping_df.columns:
     df["GL Account"] = df["GL Account"].astype(str).str.strip()
     mapping_df["GL Account"] = mapping_df["GL Account"].astype(str).str.strip()
+mapping_df = mapping_df.drop_duplicates(subset=["GL Account"])
     df = df.merge(mapping_df, on="GL Account", how="left")
     df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
 else:
