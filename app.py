@@ -113,7 +113,7 @@ if USER_COUNTRY_MAPPING.get(user) == "ALL":
 # Solo actualizar status el día 1 o 4 de cada mes
 if now.day in [1, 4]:
     def evaluate_status(row):
-        if row.get("Completed Mar") == "Yes":
+        if str(row.get("Completed Mar", "")).strip().upper() == "YES":
             return "On time"
         elif today > deadline_date:
             return "Delayed"
@@ -221,7 +221,8 @@ with cols[1]:
 
         comment_history = live_doc.get("comment", "") or ""
         if isinstance(comment_history, str) and comment_history.strip():
-            for line in comment_history.strip().split("/n"):
+            for line in comment_history.strip().split("
+"):
                 st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
 
         st.markdown("---")
