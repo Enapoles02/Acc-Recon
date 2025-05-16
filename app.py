@@ -85,26 +85,37 @@ else:
                 db.collection("reconciliation_records").document(doc_id).set(record)
             st.success("Archivo cargado correctamente a Firebase")
 
-# ---------------- Interfaz Principal ----------------
+# ---------------- Interfaz Principal con Paginación ----------------
 st.subheader("📋 Registros asignados")
 
-for index, row in df.iterrows():
-    with st.expander(f"{row.get('GL Account', 'N/A')} - {row.get('GL NAME', 'Sin nombre')}"):
-        st.markdown(f"**Balance:** {row.get('Balance  in EUR at 31/3', 'N/A')}")
-        st.markdown(f"**País:** {row.get('Country', 'N/A')}  |  **Entity:** {row.get('HFM CODE Entity', 'N/A')}")
+records_per_page = 10
+max_pages = (len(df) - 1) // records_per_page + 1
+current_page = st.number_input("Página", min_value=1, max_value=max_pages, value=1, step=1)
+start_idx = (current_page - 1) * records_per_page
+end_idx = start_idx + records_per_page
+paginated_df = df.iloc[start_idx:end_idx]
 
-        current_comment = row.get("comment", "")
-        comment = st.text_area("Comentario", value=current_comment, key=f"comment_{index}")
-        if st.button("💾 Guardar comentario", key=f"save_{index}"):
-            save_comment(row['_id'], comment)
-            st.success("Comentario guardado")
+for index, row in paginated_df.iterrows():
+    with st.container():
+        cols = st.columns([3, 7])
+        with cols[0]:
+            st.markdown(f"**GL Account:** {row.get('GL Account', 'N/A')}")
+            st.markdown(f"**GL NAME:** {row.get('GL NAME', 'Sin nombre')}")
+            st.markdown(f"**Balance:** {row.get('Balance  in EUR at 31/3', 'N/A')}")
+            st.markdown(f"**País:** {row.get('Country', 'N/A')}")
+            st.markdown(f"**Entity:** {row.get('HFM CODE Entity', 'N/A')}")
+        with cols[1]:
+            current_comment = row.get("comment", "")
+            comment = st.text_area("Comentario", value=current_comment, key=f"comment_{index}")
+            if st.button("💾 Guardar comentario", key=f"save_{index}"):
+                save_comment(row['_id'], comment)
+                st.success("Comentario guardado")
 
-        st.markdown("**📎 Subir archivo de soporte:**")
-        uploaded_file = st.file_uploader("Seleccionar archivo", type=None, key=f"upload_{index}")
-        if uploaded_file:
-            upload_file(row['_id'], uploaded_file)
-            st.success("Archivo cargado correctamente")
+            uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{index}")
+            if uploaded_file:
+                upload_file(row['_id'], uploaded_file)
+                st.success("Archivo cargado correctamente")
 
-        file_url = row.get("file_url")
-        if file_url:
-            st.markdown(f"Archivo cargado previamente: [Ver archivo]({file_url})")
+            file_url = row.get("file_url")
+            if file_url:
+                st.markdown(f"Archivo cargado previamente: [Ver archivo]({file_url})")
