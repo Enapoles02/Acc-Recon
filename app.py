@@ -93,58 +93,51 @@ if df.empty:
     st.info("No hay datos cargados.")
     st.stop()
 
-if USER_COUNTRY_MAPPING.get(user) != "ALL":
-    allowed = USER_COUNTRY_MAPPING.get(user, [])
-    if "Country" in df.columns:
-        df = df[df['Country'].isin(allowed)]
-        country_options = sorted(df['Country'].dropna().unique())
-    else:
-        st.warning("No se encontró la columna 'Country' en los datos.")
-        st.stop()
+# ---------------- Evaluación automática del estado "Status Mar" ----------------
+now = datetime.now(pytz.timezone("America/Mexico_City"))
+today = pd.Timestamp(now.date())
+
+# Permitir a ADMIN modificar fecha límite
+if USER_COUNTRY_MAPPING.get(user) == "ALL":
+    st.sidebar.markdown("### ⚙️ Configuración de Fecha Límite")
+    custom_day = st.sidebar.number_input("Día límite para completar (por default WD3)", min_value=1, max_value=31, value=3)
+    deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(custom_day - 1)
+    st.sidebar.info(f"Fecha límite considerada: {deadline_date.strftime('%Y-%m-%d')}")
 else:
-    allowed = df['Country'].dropna().unique().tolist()
-    country_options = sorted(allowed)
-    st.success("Acceso como ADMIN: Puedes ver todos los registros y subir nuevos archivos.")
-    with st.expander("🔼 Cargar nuevo archivo Excel a Firebase"):
-        upload = st.file_uploader("Selecciona un archivo .xlsx para cargar", type=["xlsx"])
-        if upload:
-            if st.button("✅ Confirmar carga del archivo"):
-                new_data = pd.read_excel(upload)
-                now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
-                for _, row in new_data.iterrows():
-                    doc_id = str(uuid.uuid4())
-                    record = row.to_dict()
-                    record["upload_time"] = now
-                    gl_account = str(record.get("GL Account", "")).zfill(10)
-                    log_upload({
-                        "file_name": upload.name,
-                        "uploaded_at": now,
-                        "user": user,
-                        "gl_account": gl_account
-                    })
-                    db.collection("reconciliation_records").document(doc_id).set(record)
-                st.success("Archivo cargado correctamente")
-                st.session_state["refresh_timestamp"] = datetime.now().timestamp()
-    df = load_data()
+    deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(2)
+
+# Mostrar fecha usada solo a ADMIN
+if USER_COUNTRY_MAPPING.get(user) == "ALL":
+    st.markdown(f"🗓️ **Fecha límite usada para evaluación:** `{deadline_date.strftime('%Y-%m-%d')}`")
+
+# Solo actualizar status el día 1 o 4 de cada mes
+if now.day in [1, 4]:
+    def evaluate_status(row):
+        if row.get("Completed Mar") == "Yes":
+            return "On time"
+        elif today > deadline_date:
+            return "Delayed"
+        else:
+            return "Pending"
+
+    df["Status Mar"] = df.apply(evaluate_status, axis=1)
+
+    for _, row in df.iterrows():
+        doc_id = row["_id"]
+        status = row["Status Mar"]
+        db.collection("reconciliation_records").document(doc_id).update({
+            "Status Mar": status,
+            "Deadline Used": deadline_date.strftime("%Y-%m-%d")
+        })
 
 # ---------------- Filtros ----------------
-unique_groups = df['ReviewGroup'].dropna().unique().tolist()
-selected_group = st.sidebar.selectbox("Filtrar por Review Group", ["Todos"] + sorted(unique_groups))
-if selected_group != "Todos":
-    df = df[df['ReviewGroup'] == selected_group]
-
-selected_country = st.sidebar.selectbox("Filtrar por Country", ["Todos"] + country_options)
-if selected_country != "Todos":
-    df = df[df['Country'] == selected_country]
-
-st.subheader("📋 Registros asignados")
 
 # Mostrar color en la lista según Status Mar
 def status_color(status):
     return {
         'On time': '🟢',
         'Delayed': '🔴',
-        'No': '⚪️'
+        'Pending': '⚪️'
     }.get(status, '⚪️')
 
 records_per_page = 5
@@ -172,7 +165,7 @@ with cols[0]:
     st.markdown("### 🧾 GL Accounts")
     for i, row in paginated_df.iterrows():
         gl_account = str(row.get("GL Account", "")).zfill(10)
-        status = row.get("Status Mar", "No")
+        status = row.get("Status Mar", "Pending")
         color = status_color(status)
         label = f"{color} {gl_account} - {row.get('GL NAME', 'Sin nombre')}"
         if st.button(label, key=f"btn_{i}"):
@@ -195,7 +188,6 @@ with cols[1]:
         live_doc_ref = db.collection("reconciliation_records").document(doc_id)
         live_doc = live_doc_ref.get().to_dict()
 
-        # ✅ Checkbox renombrado a "Completed"
         completed_val = live_doc.get("Completed Mar", "No")
         completed_checked = completed_val == "Yes"
         new_check = st.checkbox("✅ Completed", value=completed_checked, key=f"completed_{doc_id}")
@@ -218,11 +210,9 @@ with cols[1]:
             st.success(f"✔️ Estado actualizado: {new_status} | {status_result}")
             st.session_state["refresh_timestamp"] = datetime.now().timestamp()
 
-        # Mostrar siempre el status
         current_status = live_doc.get("Status Mar", "Pending")
         st.markdown(f"**status:** {current_status}")
 
-        # Comentarios
         comment_history = live_doc.get("comment", "") or ""
         if isinstance(comment_history, str) and comment_history.strip():
             for line in comment_history.strip().split("\n"):
@@ -257,9 +247,7 @@ with cols[1]:
         if uploaded_file:
             if st.button("✅ Confirmar carga de archivo", key=f"confirm_upload_{doc_id}"):
                 file_url = upload_file_to_bucket(gl_account, uploaded_file)
-                db.collection(
-                    "reconciliation_records"
-                ).document(doc_id).update({"file_url": file_url})
+                db.collection("reconciliation_records").document(doc_id).update({"file_url": file_url})
                 now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
                 log_upload({
                     "file_name": uploaded_file.name,
@@ -276,3 +264,12 @@ with cols[1]:
             st.markdown(f"📄 Archivo cargado previamente: [Ver archivo]({file_url})")
     else:
         st.markdown("<br><br><h4>Selecciona un GL para ver sus detalles</h4>", unsafe_allow_html=True)
+
+unique_groups = df['ReviewGroup'].dropna().unique().tolist()
+selected_group = st.sidebar.selectbox("Filtrar por Review Group", ["Todos"] + sorted(unique_groups))
+if selected_group != "Todos":
+    df = df[df['ReviewGroup'] == selected_group]
+
+selected_country = st.sidebar.selectbox("Filtrar por Country", ["Todos"] + sorted(df['Country'].dropna().unique()))
+if selected_country != "Todos":
+    df = df[df['Country'] == selected_country]
