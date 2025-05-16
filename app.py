@@ -41,7 +41,6 @@ def init_firebase():
 db, bucket = init_firebase()
 
 # ---------------- Funciones ----------------
-@st.cache_data(ttl=300)
 def load_data():
     docs = db.collection("reconciliation_records").stream()
     recs = []
@@ -90,6 +89,7 @@ else:
                 record = row.to_dict()
                 db.collection("reconciliation_records").document(doc_id).set(record)
             st.success("Archivo cargado correctamente a Firebase")
+    df = load_data()  # Recarga tras subida
 
 # ---------------- Interfaz tipo "chat" con burbujas de comentarios ----------------
 st.subheader("📋 Registros asignados")
@@ -114,31 +114,38 @@ with cols[0]:
 with cols[1]:
     if selected_index is not None:
         row = paginated_df.iloc[selected_index]
+        doc_id = row['_id']
         st.markdown(f"### Detalles de GL {row.get('GL Account')}")
         st.markdown(f"**GL NAME:** {row.get('GL NAME')}")
         st.markdown(f"**Balance:** {row.get('Balance  in EUR at 31/3', 'N/A')}")
         st.markdown(f"**País:** {row.get('Country', 'N/A')}")
         st.markdown(f"**Entity:** {row.get('HFM CODE Entity', 'N/A')}")
 
-        # Mostrar comentarios previos estilo burbuja con hora
-        comment_history = row.get("comment", "")
+        # Refrescar el comentario directamente del documento
+        live_doc = db.collection("reconciliation_records").document(doc_id).get().to_dict()
+        comment_history = live_doc.get("comment", "") if live_doc else ""
+
         if isinstance(comment_history, str) and comment_history.strip():
             for line in comment_history.strip().split("\n"):
                 st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
 
         # Campo para nuevo comentario
-        new_comment = st.text_area("Nuevo comentario", key=f"comment_input_{row['_id']}")
-        if st.button("💾 Guardar comentario", key=f"save_{row['_id']}"):
+        new_comment = st.text_area("Nuevo comentario", key=f"comment_input_{doc_id}")
+        if st.button("💾 Guardar comentario", key=f"save_{doc_id}"):
             tz = pytz.timezone("America/Mexico_City")
             now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
             entry = f"{user} ({now}): {new_comment}"
-            save_comment(row['_id'], entry)
+            save_comment(doc_id, entry)
+            st.session_state["selected_index"] = selected_index
+            st.experimental_set_query_params(updated=str(datetime.now().timestamp()))
             st.success("Comentario guardado")
 
-        uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{row['_id']}")
+        uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{doc_id}")
         if uploaded_file:
-            upload_file(row['_id'], uploaded_file)
+            upload_file(doc_id, uploaded_file)
             st.success("Archivo cargado correctamente")
+            st.session_state["selected_index"] = selected_index
+            st.experimental_set_query_params(updated=str(datetime.now().timestamp()))
 
         file_url = row.get("file_url")
         if file_url:
