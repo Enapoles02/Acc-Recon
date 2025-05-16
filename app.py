@@ -140,7 +140,7 @@ if modo == "📈 Dashboard KPI":
 
     col1, col2 = st.columns(2)
 
-    with col1:
+with col1:
     st.subheader("📌 Estado general (Pending vs Completed)")
 
     pie_data = filtered_df[filtered_df["Status Mar"].isin(["Pending", "On time", "Completed/Delayed"])].copy()
