@@ -146,10 +146,9 @@ if modo == "📈 Dashboard KPI":
 
     with col1:
         st.subheader("📌 Estado general (Pending vs Completed)")
-
-        pie_data = filtered_df[filtered_df["Status Mar"].isin(["Pending", "On time", "Completed/Delayed"])].copy()
+        pie_data = filtered_df[filtered_df["Status Mar"].isin(["Pending", "On time", "Completed/Delayed", "Review Required"])].copy()
         pie_data["Status Simplified"] = pie_data["Status Mar"].apply(
-            lambda x: "Completed" if x in ["On time", "Completed/Delayed"] else "Pending"
+            lambda x: "Completed" if x in ["On time", "Completed/Delayed"] else ("Review Required" if x == "Review Required" else "Pending")
         )
 
         if not pie_data.empty:
@@ -172,20 +171,29 @@ if modo == "📈 Dashboard KPI":
             st.info("No hay datos suficientes para la gráfica de pastel.")
 
     with col2:
-        st.subheader("⏱️ Desempeño (Solo líneas completadas)")
-        bar_data = filtered_df[filtered_df["Status Mar"].isin(["On time", "Delayed", "Completed/Delayed"])]
+        st.subheader("⏱️ Desempeño (Solo líneas completadas o en revisión)")
+        bar_data = filtered_df[filtered_df["Status Mar"].isin(["On time", "Delayed", "Completed/Delayed", "Review Required"])]
         if not bar_data.empty:
             bar_counts = bar_data["Status Mar"].value_counts().reset_index()
             bar_counts.columns = ["Status", "Count"]
+
+            # Colores personalizados si se desea añadir más control visual
             bar_fig = px.bar(bar_counts, x="Status", y="Count",
                  title="⏱️ Desempeño por Status",
-                 color="Status", height=350)
+                 color="Status", height=350,
+                 color_discrete_map={
+                     "On time": "green",
+                     "Completed/Delayed": "lightgreen",
+                     "Delayed": "red",
+                     "Review Required": "gold"
+                 })
 
             st.plotly_chart(bar_fig, use_container_width=True)
         else:
             st.info("No hay datos suficientes para la gráfica de barras.")
 
     st.markdown("🔍 Este dashboard refleja el estado de conciliaciones según los filtros aplicados.")
+
 
 # -------------------------------
 # VISOR GL
