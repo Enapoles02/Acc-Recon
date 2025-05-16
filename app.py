@@ -130,8 +130,12 @@ def main():
         "Guadalupe": ["Mexico", "Peru", "Panama"]
     }
 
-    allowed = mapping.get(user, [c for c in df['country'].unique() if c not in sum(mapping.values(), [])])
-    df = df[df['country'].isin(allowed)]
+    if 'country' in df.columns:
+        allowed = mapping.get(user, [c for c in df['country'].unique() if c not in sum(mapping.values(), [])])
+        df = df[df['country'].isin(allowed)]
+    else:
+        allowed = []
+        df = df.iloc[0:0]  # vacía el dataframe si no hay país
 
     st.sidebar.markdown("---")
     q = st.sidebar.text_input("Buscar cuenta")
