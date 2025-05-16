@@ -246,7 +246,7 @@ with cols[1]:
             st.info("No hay archivos cargados para esta cuenta.")
 
         new_comment = st.text_area("Nuevo comentario", key=f"comment_input_{doc_id}")
-        if st.button("💾 Guardar comentario", key<f"save_{doc_id}"):  # corrected syntax
+        if st.button("💾 Guardar comentario", key=f"save_{doc_id}"):
             now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
             entry = f"{user} ({now}): {new_comment}"
             save_comment(doc_id, entry)
