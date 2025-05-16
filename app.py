@@ -97,18 +97,18 @@ if df.empty:
 now = datetime.now(pytz.timezone("America/Mexico_City"))
 today = pd.Timestamp(now.date())
 
-# Permitir a ADMIN modificar fecha límite
 if USER_COUNTRY_MAPPING.get(user) == "ALL":
     if st.sidebar.checkbox("Estoy seguro que quiero reiniciar el mes"):
         if st.sidebar.button("🔁 Forzar reinicio del mes"):
-        for doc in db.collection("reconciliation_records").stream():
-            db.collection("reconciliation_records").document(doc.id).update({
-                "Completed Mar": "No",
-                "Completed Timestamp": "",
-                "Status Mar": "Pending",
-                "Deadline Used": ""
-            })
-        st.sidebar.success("Todos los registros han sido reiniciados.")
+            for doc in db.collection("reconciliation_records").stream():
+                db.collection("reconciliation_records").document(doc.id).update({
+                    "Completed Mar": "No",
+                    "Completed Timestamp": "",
+                    "Status Mar": "Pending",
+                    "Deadline Used": ""
+                })
+            st.sidebar.success("Todos los registros han sido reiniciados.")
+
 if USER_COUNTRY_MAPPING.get(user) == "ALL":
     st.sidebar.markdown("### ⚙️ Configuración de Fecha Límite")
     custom_day = st.sidebar.number_input("Día límite para completar (por default WD3)", min_value=1, max_value=31, value=3)
@@ -117,12 +117,9 @@ if USER_COUNTRY_MAPPING.get(user) == "ALL":
 else:
     deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(2)
 
-# Mostrar fecha usada solo a ADMIN
 if USER_COUNTRY_MAPPING.get(user) == "ALL":
     st.markdown(f"🗓️ **Fecha límite usada para evaluación:** `{deadline_date.strftime('%Y-%m-%d')}`")
 
-# Solo actualizar status el día 1 o 4 de cada mes
-# Día 1: reinicia los campos de control de mes
 if now.day == 1:
     for doc in db.collection("reconciliation_records").stream():
         db.collection("reconciliation_records").document(doc.id).update({
@@ -131,6 +128,7 @@ if now.day == 1:
             "Status Mar": "Pending",
             "Deadline Used": ""
         })
+
 if now.day in [1, 4]:
     def evaluate_status(row):
         if str(row.get("Completed Mar", "")).strip().upper() == "YES":
@@ -152,7 +150,16 @@ if now.day in [1, 4]:
 
 # ---------------- Filtros ----------------
 
-# Filtro por Status Mar
+# Filtros existentes
+unique_groups = df['ReviewGroup'].dropna().unique().tolist()
+selected_group = st.sidebar.selectbox("Filtrar por Review Group", ["Todos"] + sorted(unique_groups))
+if selected_group != "Todos":
+    df = df[df['ReviewGroup'] == selected_group]
+
+selected_country = st.sidebar.selectbox("Filtrar por Country", ["Todos"] + sorted(df['Country'].dropna().unique()))
+if selected_country != "Todos":
+    df = df[df['Country'] == selected_country]
+
 status_options = df['Status Mar'].dropna().unique().tolist()
 selected_status = st.sidebar.selectbox("Filtrar por Status Mar", ["Todos"] + sorted(status_options))
 if selected_status != "Todos":
@@ -215,7 +222,7 @@ with cols[1]:
         live_doc = live_doc_ref.get().to_dict()
 
         completed_val = live_doc.get("Completed Mar", "No")
-        completed_checked = completed_val == "Yes"
+        completed_checked = completed_val.strip().upper() == "YES"
         new_check = st.checkbox("✅ Completed", value=completed_checked, key=f"completed_{doc_id}")
 
         if new_check != completed_checked:
@@ -241,7 +248,8 @@ with cols[1]:
 
         comment_history = live_doc.get("comment", "") or ""
         if isinstance(comment_history, str) and comment_history.strip():
-            for line in comment_history.strip().split("/n"):
+            for line in comment_history.strip().split("
+"):
                 st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
 
         st.markdown("---")
@@ -290,12 +298,3 @@ with cols[1]:
             st.markdown(f"📄 Archivo cargado previamente: [Ver archivo]({file_url})")
     else:
         st.markdown("<br><br><h4>Selecciona un GL para ver sus detalles</h4>", unsafe_allow_html=True)
-
-unique_groups = df['ReviewGroup'].dropna().unique().tolist()
-selected_group = st.sidebar.selectbox("Filtrar por Review Group", ["Todos"] + sorted(unique_groups))
-if selected_group != "Todos":
-    df = df[df['ReviewGroup'] == selected_group]
-
-selected_country = st.sidebar.selectbox("Filtrar por Country", ["Todos"] + sorted(df['Country'].dropna().unique()))
-if selected_country != "Todos":
-    df = df[df['Country'] == selected_country]
