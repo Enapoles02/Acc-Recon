@@ -132,6 +132,12 @@ if now.day in [1, 4]:
 
 # ---------------- Filtros ----------------
 
+# Filtro por Status Mar
+status_options = df['Status Mar'].dropna().unique().tolist()
+selected_status = st.sidebar.selectbox("Filtrar por Status Mar", ["Todos"] + sorted(status_options))
+if selected_status != "Todos":
+    df = df[df['Status Mar'] == selected_status]
+
 # Mostrar color en la lista según Status Mar
 def status_color(status):
     return {
@@ -215,7 +221,8 @@ with cols[1]:
 
         comment_history = live_doc.get("comment", "") or ""
         if isinstance(comment_history, str) and comment_history.strip():
-            for line in comment_history.strip().split("\n"):
+            for line in comment_history.strip().split("
+"):
                 st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
 
         st.markdown("---")
