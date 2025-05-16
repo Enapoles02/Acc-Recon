@@ -153,9 +153,12 @@ if modo == "📈 Dashboard KPI":
         st.subheader("⏱️ Desempeño (Solo líneas completadas)")
         bar_data = filtered_df[filtered_df["Status Mar"].isin(["On time", "Delayed", "Completed/Delayed"])]
         if not bar_data.empty:
-            bar_fig = px.bar(bar_data["Status Mar"].value_counts().reset_index(), x="index", y="Status Mar",
-                             labels={"index": "Estado", "Status Mar": "Cantidad"},
-                             title="Distribución de Estados Completados")
+            bar_counts = bar_data["Status Mar"].value_counts().reset_index()
+            bar_counts.columns = ["Status", "Count"]
+            bar_fig = px.bar(bar_counts, x="Status", y="Count",
+                 title="⏱️ Desempeño por Status",
+                 color="Status", height=350)
+
             st.plotly_chart(bar_fig, use_container_width=True)
         else:
             st.info("No hay datos suficientes para la gráfica de barras.")
