@@ -130,9 +130,35 @@ if selected_country != "Todos":
 
 st.subheader("📋 Registros asignados")
 
+# Mostrar historial de archivos cargados
+with st.expander("📁 Historial de archivos cargados"):
+    log_docs = db.collection("upload_logs").order_by("uploaded_at", direction=firestore.Query.DESCENDING).stream()
+    log_data = [doc.to_dict() for doc in log_docs]
+    if log_data:
+        df_log = pd.DataFrame(log_data)
+        df_log = df_log.rename(columns={"file_name": "Archivo", "uploaded_at": "Fecha de carga", "user": "Usuario"})
+        for _, row in df_log.iterrows():
+            with st.container(border=True):
+                st.markdown(f"**📎 Archivo:** `{row['Archivo']}`")
+                st.markdown(f"👤 Subido por: `{row['Usuario']}`")
+                st.markdown(f"🕒 Fecha de carga: `{row['Fecha de carga']}`")
+    else:
+        st.info("No hay archivos cargados aún.")
+
 records_per_page = 5
 max_pages = (len(df) - 1) // records_per_page + 1
-current_page = st.slider("Página", min_value=1, max_value=max_pages, value=1)
+if "current_page" not in st.session_state:
+    st.session_state.current_page = 1
+
+col1, col2 = st.columns([1, 8])
+with col1:
+    if st.button("⬅️") and st.session_state.current_page > 1:
+        st.session_state.current_page -= 1
+with col2:
+    if st.button("➡️") and st.session_state.current_page < max_pages:
+        st.session_state.current_page += 1
+
+current_page = st.session_state.current_page
 start_idx = (current_page - 1) * records_per_page
 end_idx = start_idx + records_per_page
 paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
