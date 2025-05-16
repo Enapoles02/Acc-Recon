@@ -181,7 +181,7 @@ with cols[1]:
 
         st.markdown("---")
         st.markdown("### 📁 Historial de cargas de esta cuenta")
-        log_docs = db.collection("upload_logs").where(filter=("gl_account", "==", gl_account)).stream()
+        log_docs = db.collection("upload_logs").where("gl_account", "==", gl_account).stream()
         log_data = sorted([doc.to_dict() for doc in log_docs], key=lambda x: x.get("uploaded_at", ""), reverse=True)
         if log_data:
             st.markdown(f"🔁 **Reintentos:** {len(log_data)}")
