@@ -106,8 +106,10 @@ def main():
         with st.expander("🛠 Depuración de columnas"):
             st.write("**Columnas en df (desde Firebase):**")
             st.write(df.columns.tolist())
+            st.write(df.head())
             st.write("**Columnas en map_df (desde Mapping.csv):**")
             st.write(map_df.columns.tolist())
+            st.write(map_df.head())
 
     if "GL Account" in df.columns and "GL Account" in map_df.columns:
         df["GL Account"] = df["GL Account"].astype(str).str.strip()
@@ -130,12 +132,16 @@ def main():
         "Guadalupe": ["Mexico", "Peru", "Panama"]
     }
 
-    if 'country' in df.columns:
+    if 'country' in df.columns and df['country'].notna().any():
         allowed = mapping.get(user, [c for c in df['country'].unique() if c not in sum(mapping.values(), [])])
         df = df[df['country'].isin(allowed)]
+        if not is_admin and df.empty:
+            st.warning("No hay datos disponibles para tu país o usuario.")
     else:
         allowed = []
-        df = df.iloc[0:0]  # vacía el dataframe si no hay país
+        if not is_admin:
+            st.warning("No se encontró la columna 'country' o está vacía.")
+        df = df.iloc[0:0] if not is_admin else df
 
     st.sidebar.markdown("---")
     q = st.sidebar.text_input("Buscar cuenta")
