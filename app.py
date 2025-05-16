@@ -99,6 +99,17 @@ today = pd.Timestamp(now.date())
 
 # Permitir a ADMIN modificar fecha límite
 if USER_COUNTRY_MAPPING.get(user) == "ALL":
+    if st.sidebar.checkbox("Estoy seguro que quiero reiniciar el mes"):
+        if st.sidebar.button("🔁 Forzar reinicio del mes"):
+        for doc in db.collection("reconciliation_records").stream():
+            db.collection("reconciliation_records").document(doc.id).update({
+                "Completed Mar": "No",
+                "Completed Timestamp": "",
+                "Status Mar": "Pending",
+                "Deadline Used": ""
+            })
+        st.sidebar.success("Todos los registros han sido reiniciados.")
+if USER_COUNTRY_MAPPING.get(user) == "ALL":
     st.sidebar.markdown("### ⚙️ Configuración de Fecha Límite")
     custom_day = st.sidebar.number_input("Día límite para completar (por default WD3)", min_value=1, max_value=31, value=3)
     deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(custom_day - 1)
@@ -111,6 +122,15 @@ if USER_COUNTRY_MAPPING.get(user) == "ALL":
     st.markdown(f"🗓️ **Fecha límite usada para evaluación:** `{deadline_date.strftime('%Y-%m-%d')}`")
 
 # Solo actualizar status el día 1 o 4 de cada mes
+# Día 1: reinicia los campos de control de mes
+if now.day == 1:
+    for doc in db.collection("reconciliation_records").stream():
+        db.collection("reconciliation_records").document(doc.id).update({
+            "Completed Mar": "No",
+            "Completed Timestamp": "",
+            "Status Mar": "Pending",
+            "Deadline Used": ""
+        })
 if now.day in [1, 4]:
     def evaluate_status(row):
         if str(row.get("Completed Mar", "")).strip().upper() == "YES":
@@ -221,7 +241,8 @@ with cols[1]:
 
         comment_history = live_doc.get("comment", "") or ""
         if isinstance(comment_history, str) and comment_history.strip():
-            for line in comment_history.strip().split("/n"):
+            for line in comment_history.strip().split("
+"):
                 st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
 
         st.markdown("---")
