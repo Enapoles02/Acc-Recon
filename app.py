@@ -85,7 +85,7 @@ else:
                 db.collection("reconciliation_records").document(doc_id).set(record)
             st.success("Archivo cargado correctamente a Firebase")
 
-# ---------------- Interfaz Principal con Paginación ----------------
+# ---------------- Interfaz tipo chat simplificada ----------------
 st.subheader("📋 Registros asignados")
 
 records_per_page = 10
@@ -96,11 +96,9 @@ end_idx = start_idx + records_per_page
 paginated_df = df.iloc[start_idx:end_idx]
 
 for index, row in paginated_df.iterrows():
-    with st.container():
+    with st.expander(f"{row.get('GL Account', 'N/A')} - {row.get('GL NAME', 'Sin nombre')}"):
         cols = st.columns([3, 7])
         with cols[0]:
-            st.markdown(f"**GL Account:** {row.get('GL Account', 'N/A')}")
-            st.markdown(f"**GL NAME:** {row.get('GL NAME', 'Sin nombre')}")
             st.markdown(f"**Balance:** {row.get('Balance  in EUR at 31/3', 'N/A')}")
             st.markdown(f"**País:** {row.get('Country', 'N/A')}")
             st.markdown(f"**Entity:** {row.get('HFM CODE Entity', 'N/A')}")
