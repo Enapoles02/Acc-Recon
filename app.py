@@ -170,14 +170,17 @@ if user == "ADMIN":
         wd = get_stored_deadline_day()
         today = pd.Timestamp(datetime.now(pytz.timezone("America/Mexico_City")).date())
         deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(wd - 1)
-
+    
         docs = list(db.collection("reconciliation_records").stream())
         total = len(docs)
         progress = st.sidebar.progress(0, text="Evaluando estatus...")
-
+    
         for i, doc in enumerate(docs):
             data = doc.to_dict()
             completed = data.get("Completed Mar", "No").strip().upper()
+            current_status = data.get("Status Mar", "Pending")
+    
+            # Caso 1: Completado -> se evalúa fecha
             if completed == "YES":
                 completed_date_str = data.get("Completed Timestamp")
                 if completed_date_str:
@@ -187,10 +190,19 @@ if user == "ADMIN":
                         "Status Mar": status,
                         "Deadline Used": deadline_date.strftime("%Y-%m-%d")
                     })
+    
+            # Caso 2: No completado y sigue como Pending -> marcar como Delayed si ya pasó WD
+            elif completed == "NO" and current_status == "Pending" and today > deadline_date:
+                doc.reference.update({
+                    "Status Mar": "Delayed",
+                    "Deadline Used": deadline_date.strftime("%Y-%m-%d")
+                })
+    
             progress.progress((i + 1) / total)
-
+    
         progress.empty()
         st.sidebar.success("Evaluación de estado completada.")
+
 
 
 # -------------------------------
