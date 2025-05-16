@@ -111,9 +111,9 @@ workdays = get_workdays(today.year, today.month)
 day_is_wd1 = today == workdays[0]
 day_is_wd4 = len(workdays) >= 4 and today == workdays[3]
 
+# Configuración admin
 if USER_COUNTRY_MAPPING.get(user) == "ALL":
     st.sidebar.markdown("### ⚙️ Configuración de Fecha Límite")
-
     current_deadline = get_stored_deadline_day()
     custom_day = st.sidebar.number_input("Día límite para completar (por default WD3)", min_value=1, max_value=31, value=current_deadline)
     deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(custom_day - 1)
@@ -135,38 +135,36 @@ if USER_COUNTRY_MAPPING.get(user) == "ALL":
                 })
             st.sidebar.success("✅ Todos los registros han sido reiniciados.")
 
-if st.sidebar.button("🔄 Forzar evaluación de Status Mar"):
-    with st.spinner("Recalculando estados desde Firebase con nueva fecha límite..."):
-        records = db.collection("reconciliation_records").stream()
-        for doc in records:
-            data = doc.to_dict()
-            completed = str(data.get("Completed Mar", "")).strip().upper()
-            timestamp_str = str(data.get("Completed Timestamp", "")).strip()
+    if st.sidebar.button("🔄 Forzar evaluación de Status Mar"):
+        with st.spinner("Recalculando estados desde Firebase con nueva fecha límite..."):
+            records = db.collection("reconciliation_records").stream()
+            for doc in records:
+                data = doc.to_dict()
+                completed = str(data.get("Completed Mar", "")).strip().upper()
+                timestamp_str = str(data.get("Completed Timestamp", "")).strip()
 
-            if completed == "YES":
-                if timestamp_str:
-                    try:
-                        completed_ts = pd.to_datetime(timestamp_str)
-                        status = "On time" if completed_ts <= deadline_date else "Completed/Delayed"
-                    except Exception:
+                if completed == "YES":
+                    if timestamp_str:
+                        try:
+                            completed_ts = pd.to_datetime(timestamp_str)
+                            status = "On time" if completed_ts <= deadline_date else "Completed/Delayed"
+                        except Exception:
+                            status = "Completed/Delayed"
+                    else:
                         status = "Completed/Delayed"
                 else:
-                    status = "Completed/Delayed"
-            else:
-                # Not completed, evaluate if still within time or too late
-                status = "Pending" if today <= deadline_date else "Delayed"
+                    status = "Pending" if today <= deadline_date else "Delayed"
 
-            db.collection("reconciliation_records").document(doc.id).update({
-                "Status Mar": status,
-                "Deadline Used": deadline_date.strftime("%Y-%m-%d")
-            })
+                db.collection("reconciliation_records").document(doc.id).update({
+                    "Status Mar": status,
+                    "Deadline Used": deadline_date.strftime("%Y-%m-%d")
+                })
 
-    st.sidebar.success("✅ Estados sobrescritos en Firebase con la nueva fecha límite.")
-
-
+        st.sidebar.success("✅ Estados sobrescritos en Firebase con la nueva fecha límite.")
 else:
     deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(2)
 
+# WD1 reset automático
 if day_is_wd1:
     for doc in db.collection("reconciliation_records").stream():
         db.collection("reconciliation_records").document(doc.id).update({
@@ -176,6 +174,7 @@ if day_is_wd1:
             "Deadline Used": ""
         })
 
+# WD4 evaluación automática
 if day_is_wd4:
     def evaluate_status(row):
         completed = str(row.get("Completed Mar", "")).strip().upper()
@@ -197,7 +196,8 @@ if day_is_wd4:
             "Status Mar": row["Status Mar"],
             "Deadline Used": deadline_date.strftime("%Y-%m-%d")
         })
-# ---------------- Filtros ----------------
+
+# Filtros
 unique_groups = df['ReviewGroup'].dropna().unique().tolist()
 selected_group = st.sidebar.selectbox("Filtrar por Review Group", ["Todos"] + sorted(unique_groups))
 if selected_group != "Todos":
@@ -237,7 +237,6 @@ current_page = st.session_state.current_page
 start_idx = (current_page - 1) * records_per_page
 end_idx = start_idx + records_per_page
 paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
-
 selected_index = st.session_state.get("selected_index", None)
 
 cols = st.columns([3, 9])
@@ -276,13 +275,11 @@ with cols[1]:
             new_status = "Yes" if new_check else "No"
             now = datetime.now(pytz.timezone("America/Mexico_City"))
             timestamp_str = now.strftime("%Y-%m-%d %H:%M:%S")
-            today = pd.Timestamp(now.date())
 
-            # Usar deadline_date del panel admin
             if new_check:
-                status_result = "On time" if today <= deadline_date else "Completed/Delayed"
+                status_result = "On time" if pd.Timestamp(now) <= deadline_date else "Completed/Delayed"
             else:
-                status_result = "Delayed" if today > deadline_date else "Pending"
+                status_result = "Pending" if pd.Timestamp(now) <= deadline_date else "Delayed"
 
             live_doc_ref.update({
                 "Completed Mar": new_status,
