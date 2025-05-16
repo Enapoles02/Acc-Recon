@@ -111,8 +111,10 @@ else:
                 doc_id = str(uuid.uuid4())
                 record = row.to_dict()
                 record["upload_time"] = now
+                gl_account = str(record.get("GL Account", "")).zfill(10)
+                log_upload({"file_name": upload.name, "uploaded_at": now, "user": user, "gl_account": gl_account})
                 db.collection("reconciliation_records").document(doc_id).set(record)
-            log_upload({"file_name": upload.name, "uploaded_at": now, "user": user})
+            
             st.success("Archivo cargado correctamente a Firebase")
     df = load_data()
 
@@ -130,20 +132,8 @@ if selected_country != "Todos":
 
 st.subheader("📋 Registros asignados")
 
-# Mostrar historial de archivos cargados
-with st.expander("📁 Historial de archivos cargados"):
-    log_docs = db.collection("upload_logs").order_by("uploaded_at", direction=firestore.Query.DESCENDING).stream()
-    log_data = [doc.to_dict() for doc in log_docs]
-    if log_data:
-        df_log = pd.DataFrame(log_data)
-        df_log = df_log.rename(columns={"file_name": "Archivo", "uploaded_at": "Fecha de carga", "user": "Usuario"})
-        for _, row in df_log.iterrows():
-            with st.container(border=True):
-                st.markdown(f"**📎 Archivo:** `{row['Archivo']}`")
-                st.markdown(f"👤 Subido por: `{row['Usuario']}`")
-                st.markdown(f"🕒 Fecha de carga: `{row['Fecha de carga']}`")
-    else:
-        st.info("No hay archivos cargados aún.")
+# Mostrar historial solo dentro del detalle de la cuenta
+# Este bloque fue eliminado de aquí y será integrado individualmente por cuenta
 
 records_per_page = 5
 max_pages = (len(df) - 1) // records_per_page + 1
@@ -190,20 +180,22 @@ with cols[1]:
         comment_history = live_doc.get("comment", "") if live_doc else ""
 
         if isinstance(comment_history, str) and comment_history.strip():
-            for line in comment_history.strip().split("\n"):
+            for line in comment_history.strip().split("
+"):
                 st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
 
-        # Campo para nuevo comentario
-        new_comment = st.text_area("Nuevo comentario", key=f"comment_input_{doc_id}")
-        if st.button("💾 Guardar comentario", key=f"save_{doc_id}"):
-            tz = pytz.timezone("America/Mexico_City")
-            now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-            entry = f"{user} ({now}): {new_comment}"
-            save_comment(doc_id, entry)
-            st.session_state["selected_index"] = selected_index
-            st.success("Comentario guardado")
+        # Historial de cargas por cuenta
+        st.markdown("---")
+        st.markdown("### 📁 Historial de cargas de esta cuenta")
+        log_docs = db.collection("upload_logs").where("gl_account", "==", row.get("GL Account")).order_by("uploaded_at", direction=firestore.Query.DESCENDING).stream()
+        log_data = [doc.to_dict() for doc in log_docs]
+        if log_data:
+            for log in log_data:
+                st.markdown(f"- 📎 **{log['file_name']}**  | 👤 {log['user']}  | 🕒 {log['uploaded_at']}")
+        else:
+            st.info("No hay archivos cargados para esta cuenta.")
 
-        uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{doc_id}")
+        # Campo para nuevo comentario
         if uploaded_file:
             upload_file(doc_id, uploaded_file)
             st.success("Archivo cargado correctamente")
