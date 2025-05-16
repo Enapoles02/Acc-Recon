@@ -371,7 +371,7 @@ if modo == "📋 Visor GL":
             'On time': '🟢',
             'Delayed': '🔴',
             'Pending': '⚪️',
-            'Completed/Delayed': '🟢',
+            'Completed/Delayed': '🔴🟢',
             'Review Required': '🟡'
         }.get(status, '⚪️')
 
