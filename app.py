@@ -277,12 +277,18 @@ with cols[1]:
             now = datetime.now(pytz.timezone("America/Mexico_City"))
             timestamp_str = now.strftime("%Y-%m-%d %H:%M:%S")
             today = pd.Timestamp(now.date())
-            status_result = "On time" if new_check and today <= deadline_date else "Completed/Delayed" if new_check else "Delayed"
+
+            # Usar deadline_date del panel admin
+            if new_check:
+                status_result = "On time" if today <= deadline_date else "Completed/Delayed"
+            else:
+                status_result = "Delayed" if today > deadline_date else "Pending"
 
             live_doc_ref.update({
                 "Completed Mar": new_status,
                 "Completed Timestamp": timestamp_str,
-                "Status Mar": status_result
+                "Status Mar": status_result,
+                "Deadline Used": deadline_date.strftime("%Y-%m-%d")
             })
 
             st.success(f"✔️ Estado actualizado: {new_status} | {status_result}")
