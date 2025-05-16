@@ -215,8 +215,20 @@ if modo == "📈 Dashboard KPI":
             st.plotly_chart(bar_fig, use_container_width=True)
         else:
             st.info("No hay datos suficientes para la gráfica de barras.")
-
+            # DRILLDOWN DE CUENTAS EN REVISIÓN
+    review_pending_df = filtered_df[filtered_df["Status Mar"] == "Review Required"]
+    if not review_pending_df.empty:
+        with st.expander("🔍 Ver cuentas pendientes de revisión"):
+            st.markdown("Estas cuentas están marcadas con **⚠️ Review Required**.")
+            st.dataframe(
+                review_pending_df[[
+                    "GL Account", "GL NAME", "Country", "ReviewGroup", "HFM CODE Entity"
+                ]].sort_values("GL Account"),
+                use_container_width=True
+            )
+    
     st.markdown("🔍 Este dashboard refleja el estado de conciliaciones según los filtros aplicados.")
+
 # -------------------------------
 # VISOR GL
 # -------------------------------
