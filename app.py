@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
+from google.cloud.firestore_v1 import FieldFilter
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 
 # ---------------- Configuración inicial ----------------
@@ -67,7 +68,8 @@ def upload_file_to_bucket(gl_account, uploaded_file):
     blob_path = f"reconciliation_records/{gl_account}/{uploaded_file.name}"
     blob = bucket.blob(blob_path)
     blob.upload_from_file(uploaded_file, content_type=uploaded_file.type)
-    return blob.public_url
+    url = blob.generate_signed_url(expiration=timedelta(hours=2))  # URL válida por 2 horas
+    return url
 
 def log_upload(metadata):
     log_id = str(uuid.uuid4())
@@ -92,8 +94,12 @@ if df.empty:
 
 if USER_COUNTRY_MAPPING.get(user) != "ALL":
     allowed = USER_COUNTRY_MAPPING.get(user, [])
-    df = df[df['Country'].isin(allowed)]
-    country_options = sorted(df['Country'].dropna().unique())
+    if "Country" in df.columns:
+        df = df[df['Country'].isin(allowed)]
+        country_options = sorted(df['Country'].dropna().unique())
+    else:
+        st.warning("No se encontró la columna 'Country' en los datos.")
+        st.stop()
 else:
     allowed = df['Country'].dropna().unique().tolist()
     country_options = sorted(allowed)
@@ -119,6 +125,7 @@ else:
                 st.success("Archivo cargado correctamente")
                 st.session_state["refresh_timestamp"] = datetime.now().timestamp()
     df = load_data()
+
 # ---------------- Filtros ----------------
 unique_groups = df['ReviewGroup'].dropna().unique().tolist()
 selected_group = st.sidebar.selectbox("Filtrar por Review Group", ["Todos"] + sorted(unique_groups))
@@ -181,16 +188,18 @@ with cols[1]:
 
         st.markdown("---")
         st.markdown("### 📁 Historial de cargas de esta cuenta")
-        from google.cloud.firestore_v1 import FieldFilter
-
-        log_docs = db.collection("upload_logs").where(filter=FieldFilter("gl_account", "==", gl_account)).stream()
-
-        log_data = sorted([doc.to_dict() for doc in log_docs], key=lambda x: x.get("uploaded_at", ""), reverse=True)
+        log_docs = db.collection("upload_logs").where(
+            filter=FieldFilter("gl_account", "==", gl_account)
+        ).stream()
+        log_data = sorted(
+            [doc.to_dict() for doc in log_docs],
+            key=lambda x: x.get("uploaded_at", ""),
+            reverse=True
+        )
         if log_data:
             st.markdown(f"🔁 **Reintentos:** {len(log_data)}")
             for log in log_data:
-                file_url = f"https://storage.googleapis.com/{bucket.name}/reconciliation_records/{gl_account}/{log['file_name']}"
-                st.markdown(f"- 📎 **{log['file_name']}** | 👤 {log['user']} | 🕒 {log['uploaded_at']} | [🔽 Descargar]({file_url})")
+                st.markdown(f"- 📎 **{log['file_name']}** | 👤 {log['user']} | 🕒 {log['uploaded_at']} | [🔽 Descargar]({log.get('file_url', '#')})")
         else:
             st.info("No hay archivos cargados para esta cuenta.")
 
@@ -212,7 +221,8 @@ with cols[1]:
                     "file_name": uploaded_file.name,
                     "uploaded_at": now,
                     "user": user,
-                    "gl_account": gl_account
+                    "gl_account": gl_account,
+                    "file_url": file_url
                 })
                 st.success("Archivo cargado correctamente")
                 st.session_state["refresh_timestamp"] = datetime.now().timestamp()
