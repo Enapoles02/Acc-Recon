@@ -81,6 +81,7 @@ if "GL Account" in df.columns and "GL Account" in mapping_df.columns:
     df["GL Account"] = df["GL Account"].astype(str).str.strip()
     mapping_df["GL Account"] = mapping_df["GL Account"].astype(str).str.strip()
 mapping_df = mapping_df.drop_duplicates(subset=["GL Account"])
+mapping_df = mapping_df.drop_duplicates(subset=["GL Account"])
     df = df.merge(mapping_df, on="GL Account", how="left")
     df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
 else:
@@ -110,6 +111,12 @@ else:
     df = load_data()  # Recarga tras subida
 
 # ---------------- Interfaz tipo "chat" con burbujas de comentarios ----------------
+
+# Filtro por ReviewGroup
+unique_groups = df['ReviewGroup'].dropna().unique().tolist()
+selected_group = st.sidebar.selectbox("Filtrar por Review Group", ["Todos"] + sorted(unique_groups))
+if selected_group != "Todos":
+    df = df[df['ReviewGroup'] == selected_group]
 st.subheader("📋 Registros asignados")
 
 records_per_page = 10
@@ -171,3 +178,5 @@ with cols[1]:
             st.markdown(f"Archivo cargado previamente: [Ver archivo]({file_url})")
     else:
         st.markdown("<br><br><h4>Selecciona un GL para ver sus detalles</h4>", unsafe_allow_html=True)
+df = df.merge(mapping_df, on="GL Account", how="left")
+    df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
