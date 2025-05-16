@@ -3,6 +3,7 @@ import pandas as pd
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 from google.cloud.firestore_v1 import FieldFilter
+from pandas.tseries.offsets import BDay
 import uuid
 from datetime import datetime, timedelta
 import pytz
@@ -68,7 +69,7 @@ def upload_file_to_bucket(gl_account, uploaded_file):
     blob_path = f"reconciliation_records/{gl_account}/{uploaded_file.name}"
     blob = bucket.blob(blob_path)
     blob.upload_from_file(uploaded_file, content_type=uploaded_file.type)
-    url = blob.generate_signed_url(expiration=timedelta(hours=2))  # URL válida por 2 horas
+    url = blob.generate_signed_url(expiration=timedelta(hours=2))
     return url
 
 def log_upload(metadata):
@@ -180,8 +181,33 @@ with cols[1]:
         st.markdown(f"**Entity:** {row.get('HFM CODE Entity', 'N/A')}")
         st.markdown(f"**Review Group:** {row.get('ReviewGroup', 'Others')}")
 
-        live_doc = db.collection("reconciliation_records").document(doc_id).get().to_dict()
+        live_doc_ref = db.collection("reconciliation_records").document(doc_id)
+        live_doc = live_doc_ref.get().to_dict()
         comment_history = live_doc.get("comment", "") if live_doc else ""
+
+        # ✅ Checkbox de Completed Mar
+        completed_val = live_doc.get("Completed Mar", "No")
+        completed_checked = completed_val == "Yes"
+        new_check = st.checkbox("✅ Completed Mar", value=completed_checked, key=f"completed_{doc_id}")
+
+        if new_check != completed_checked:
+            new_status = "Yes" if new_check else "No"
+            now = datetime.now(pytz.timezone("America/Mexico_City"))
+            timestamp_str = now.strftime("%Y-%m-%d %H:%M:%S")
+
+            today = pd.Timestamp(now.date())
+            wd3 = pd.Timestamp(today.replace(day=1)) + BDay(2)
+            status_result = "On time" if today <= wd3 else "Delayed"
+
+            live_doc_ref.update({
+                "Completed Mar": new_status,
+                "Completed Timestamp": timestamp_str,
+                "Status Mar": status_result
+            })
+
+            st.success(f"✔️ Estado actualizado: {new_status} | {status_result}")
+            st.session_state["refresh_timestamp"] = datetime.now().timestamp()
+
         if isinstance(comment_history, str) and comment_history.strip():
             for line in comment_history.strip().split("\n"):
                 st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
