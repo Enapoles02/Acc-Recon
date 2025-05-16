@@ -26,7 +26,7 @@ def init_firebase():
 def load_mapping():
     url = "https://raw.githubusercontent.com/Enapoles02/Acc-Recon/main/Mapping.csv"
     df = pd.read_csv(url, dtype=str)
-    df.columns = df.columns.str.strip()
+    df.columns = df.columns.str.strip().str.replace(r'\s+', ' ', regex=True)
     df = df.rename(columns={"GL Account": "GL Account", "Group": "ReviewGroup"})
     return df
 
@@ -140,7 +140,7 @@ def main():
         allowed = []
         if not is_admin:
             st.warning("No se encontró la columna 'country' o está vacía.")
-        df = df.iloc[0:0] if not is_admin else df
+        df = df if is_admin else df.iloc[0:0]
 
     st.sidebar.markdown("---")
     q = st.sidebar.text_input("Buscar cuenta")
@@ -162,9 +162,12 @@ def main():
         if st.button("↓") and st.session_state['start'] < n - 5:
             st.session_state['start'] += 1
         sub = df.iloc[st.session_state['start']:st.session_state['start'] + 5]
-        for i, (_, r) in enumerate(sub.iterrows()):
-            key = f"{i}_{r.get('_id', '')}_{r.get('GL Account', '')}_{r.get('country', '')}"
-            label = f"{r.get('gl_name', '')} - {r.get('GL Account', '')} ({abbr(r.get('country', ''))})"
+        for idx, r in sub.iterrows():
+            gl_name = r.get('gl_name', '')
+            gl_account = r.get('GL Account', '')
+            country = r.get('country', '')
+            key = f"rec_{idx}_{gl_account}_{country}"
+            label = f"{gl_name} - {gl_account} ({abbr(country)})"
             if st.button(label, key=key):
                 st.session_state['selected'] = r['_id']
 
