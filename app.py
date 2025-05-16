@@ -116,6 +116,10 @@ df["Region"] = df["Country"].apply(lambda x: "NAMER" if x in ["Canada", "United 
 
 # Vista seleccionable
 modo = st.sidebar.selectbox("Selecciona vista:", ["📈 Dashboard KPI", "📋 Visor GL"])
+
+# -------------------------------
+# KPI DASHBOARD
+# -------------------------------
 if modo == "📈 Dashboard KPI":
     st.title("📊 Dashboard KPI - Estado de Conciliaciones")
 
@@ -181,7 +185,9 @@ if modo == "📈 Dashboard KPI":
         else:
             st.info("No hay datos suficientes para la gráfica de barras.")
 
-     st.markdown("🔍 Este dashboard refleja el estado de conciliaciones según los filtros aplicados.")
+    st.markdown("🔍 Este dashboard refleja el estado de conciliaciones según los filtros aplicados.")
+
+
 if modo == "📋 Visor GL":
     records_per_page = 5
     max_pages = (len(df) - 1) // records_per_page + 1
