@@ -85,7 +85,7 @@ else:
                 db.collection("reconciliation_records").document(doc_id).set(record)
             st.success("Archivo cargado correctamente a Firebase")
 
-# ---------------- Interfaz tipo "chat" con ventana a la derecha ----------------
+# ---------------- Interfaz tipo "chat" con burbujas de comentarios ----------------
 st.subheader("📋 Registros asignados")
 
 records_per_page = 10
@@ -114,10 +114,16 @@ with cols[1]:
         st.markdown(f"**País:** {row.get('Country', 'N/A')}")
         st.markdown(f"**Entity:** {row.get('HFM CODE Entity', 'N/A')}")
 
-        current_comment = row.get("comment", "")
-        comment = st.text_area("Comentario", value=current_comment, key=f"comment_{row['_id']}")
+        # Mostrar comentarios previos estilo burbuja
+        comment_history = row.get("comment", "")
+        if comment_history:
+            st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {comment_history}</div>", unsafe_allow_html=True)
+
+        # Campo para nuevo comentario
+        new_comment = st.text_area("Nuevo comentario", key=f"comment_input_{row['_id']}")
         if st.button("💾 Guardar comentario", key=f"save_{row['_id']}"):
-            save_comment(row['_id'], comment)
+            full_comment = f"{comment_history}\n{user}: {new_comment}" if comment_history else f"{user}: {new_comment}"
+            save_comment(row['_id'], full_comment)
             st.success("Comentario guardado")
 
         uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{row['_id']}")
