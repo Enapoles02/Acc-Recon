@@ -1,12 +1,30 @@
 import streamlit as st
 import pandas as pd
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, firestore, storage
+import uuid
+import io
 
+# ---------------- Configuracion inicial ----------------
 st.set_page_config(page_title="Reconciliación GL", layout="wide")
-st.title("Dashboard de Reconciliación GL - Base")
+st.title("📊 Dashboard de Reconciliación GL")
 
-# ------------------ Firebase ------------------
+# ---------------- Autenticacion por usuario ----------------
+user = st.sidebar.text_input("Usuario")
+
+USER_COUNTRY_MAPPING = {
+    "Paula Sarachaga": ["Argentina", "Chile", "Guatemala"],
+    "Napoles Enrique": ["Canada"],
+    "Julio": ["United States of America"],
+    "Guadalupe": ["Mexico", "Peru", "Panama"],
+    "ADMIN": "ALL"
+}
+
+if not user:
+    st.warning("Ingresa tu nombre de usuario para continuar.")
+    st.stop()
+
+# ---------------- Inicializar Firebase ----------------
 @st.cache_resource
 def init_firebase():
     firebase_creds = st.secrets["firebase_credentials"]
@@ -16,69 +34,77 @@ def init_firebase():
     if not firebase_admin._apps:
         cred = credentials.Certificate(firebase_creds)
         firebase_admin.initialize_app(cred, {"storageBucket": bucket_name})
-    return firestore.client()
+    return firestore.client(), storage.bucket()
 
-# ------------------ Cargar datos ------------------
+db, bucket = init_firebase()
+
+# ---------------- Funciones ----------------
 @st.cache_data(ttl=300)
 def load_data():
-    db = init_firebase()
     docs = db.collection("reconciliation_records").stream()
     recs = []
     for d in docs:
         data = d.to_dict()
         flat_data = {"_id": d.id}
         for k, v in data.items():
-            flat_data[str(k).strip()] = str(v).strip() if v is not None else None
+            flat_data[str(k).strip()] = v
         recs.append(flat_data)
-    df = pd.DataFrame(recs)
-    df.columns = df.columns.str.strip().str.replace(r'\s+', ' ', regex=True)
-    return df
+    return pd.DataFrame(recs)
 
-@st.cache_data
-def load_mapping():
-    url = "https://raw.githubusercontent.com/Enapoles02/Acc-Recon/main/Mapping.csv"
-    df = pd.read_csv(url, dtype=str)
-    df.columns = df.columns.str.strip().str.replace(r'\s+', ' ', regex=True)
-    df = df.rename(columns={"GL Account": "GL Account", "Group": "ReviewGroup"})
-    return df
+def save_comment(doc_id, comment):
+    db.collection("reconciliation_records").document(doc_id).update({"comment": comment})
 
-# ------------------ App básica ------------------
-def main():
-    user = st.sidebar.text_input("Usuario")
-    if not user:
-        st.warning("Ingresa tu nombre de usuario para comenzar.")
-        return
+def upload_file(doc_id, uploaded_file):
+    blob_path = f"supporting_files/{doc_id}/{uploaded_file.name}"
+    blob = bucket.blob(blob_path)
+    blob.upload_from_file(uploaded_file, content_type=uploaded_file.type)
+    db.collection("reconciliation_records").document(doc_id).update({"file_url": blob.public_url})
 
-    mapping = {
-        "Paula Sarachaga": ["Argentina", "Chile", "Guatemala"],
-        "Napoles Enrique": ["Canada"],
-        "Julio": ["United States of America"],
-        "Guadalupe": ["Mexico", "Peru", "Panama"]
-    }
+# ---------------- Carga y Filtro de Datos ----------------
+df = load_data()
 
-    df = load_data()
-    map_df = load_mapping()
+if df.empty:
+    st.info("No hay datos cargados.")
+    st.stop()
 
-    if "GL Account" in df.columns and "GL Account" in map_df.columns:
-        df["GL Account"] = df["GL Account"].astype(str).str.strip()
-        map_df["GL Account"] = map_df["GL Account"].astype(str).str.strip()
-        df = df.merge(map_df, on="GL Account", how="left")
-        df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
-    else:
-        st.error("No se encontró la columna 'GL Account' en los datos o mapping.")
-        return
+if USER_COUNTRY_MAPPING.get(user) != "ALL":
+    allowed = USER_COUNTRY_MAPPING.get(user, [])
+    df = df[df['Country'].isin(allowed)]
+    if df.empty:
+        st.warning("No tienes datos asignados para revisar.")
+        st.stop()
+else:
+    st.success("Acceso como ADMIN: Puedes ver todos los registros y subir nuevos archivos.")
+    with st.expander("🔼 Cargar nuevo archivo Excel a Firebase"):
+        upload = st.file_uploader("Selecciona un archivo .xlsx para cargar", type=["xlsx"])
+        if upload:
+            new_data = pd.read_excel(upload)
+            for _, row in new_data.iterrows():
+                doc_id = str(uuid.uuid4())
+                record = row.to_dict()
+                db.collection("reconciliation_records").document(doc_id).set(record)
+            st.success("Archivo cargado correctamente a Firebase")
 
-    if 'country' in df.columns:
-        allowed = mapping.get(user, [])
-        if allowed:
-            df = df[df['country'].isin(allowed)]
-        else:
-            st.warning("Tu usuario no tiene países asignados o no hay coincidencias.")
-    else:
-        st.warning("No se encontró la columna 'country' en los datos.")
+# ---------------- Interfaz Principal ----------------
+st.subheader("📋 Registros asignados")
 
-    st.subheader("📄 Datos cargados")
-    st.write(df)
+for index, row in df.iterrows():
+    with st.expander(f"{row.get('GL Account', 'N/A')} - {row.get('GL NAME', 'Sin nombre')}"):
+        st.markdown(f"**Balance:** {row.get('Balance  in EUR at 31/3', 'N/A')}")
+        st.markdown(f"**País:** {row.get('Country', 'N/A')}  |  **Entity:** {row.get('HFM CODE Entity', 'N/A')}")
 
-if __name__ == '__main__':
-    main()
+        current_comment = row.get("comment", "")
+        comment = st.text_area("Comentario", value=current_comment, key=f"comment_{index}")
+        if st.button("💾 Guardar comentario", key=f"save_{index}"):
+            save_comment(row['_id'], comment)
+            st.success("Comentario guardado")
+
+        st.markdown("**📎 Subir archivo de soporte:**")
+        uploaded_file = st.file_uploader("Seleccionar archivo", type=None, key=f"upload_{index}")
+        if uploaded_file:
+            upload_file(row['_id'], uploaded_file)
+            st.success("Archivo cargado correctamente")
+
+        file_url = row.get("file_url")
+        if file_url:
+            st.markdown(f"Archivo cargado previamente: [Ver archivo]({file_url})")
