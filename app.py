@@ -85,7 +85,7 @@ else:
                 db.collection("reconciliation_records").document(doc_id).set(record)
             st.success("Archivo cargado correctamente a Firebase")
 
-# ---------------- Interfaz tipo chat simplificada ----------------
+# ---------------- Interfaz tipo "chat" con ventana a la derecha ----------------
 st.subheader("📋 Registros asignados")
 
 records_per_page = 10
@@ -93,27 +93,40 @@ max_pages = (len(df) - 1) // records_per_page + 1
 current_page = st.number_input("Página", min_value=1, max_value=max_pages, value=1, step=1)
 start_idx = (current_page - 1) * records_per_page
 end_idx = start_idx + records_per_page
-paginated_df = df.iloc[start_idx:end_idx]
+paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
 
-for index, row in paginated_df.iterrows():
-    with st.expander(f"{row.get('GL Account', 'N/A')} - {row.get('GL NAME', 'Sin nombre')}"):
-        cols = st.columns([3, 7])
-        with cols[0]:
-            st.markdown(f"**Balance:** {row.get('Balance  in EUR at 31/3', 'N/A')}")
-            st.markdown(f"**País:** {row.get('Country', 'N/A')}")
-            st.markdown(f"**Entity:** {row.get('HFM CODE Entity', 'N/A')}")
-        with cols[1]:
-            current_comment = row.get("comment", "")
-            comment = st.text_area("Comentario", value=current_comment, key=f"comment_{index}")
-            if st.button("💾 Guardar comentario", key=f"save_{index}"):
-                save_comment(row['_id'], comment)
-                st.success("Comentario guardado")
+selected_index = st.session_state.get("selected_index", None)
 
-            uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{index}")
-            if uploaded_file:
-                upload_file(row['_id'], uploaded_file)
-                st.success("Archivo cargado correctamente")
+cols = st.columns([3, 9])
+with cols[0]:
+    st.markdown("### 🧾 GL Accounts")
+    for i, row in paginated_df.iterrows():
+        if st.button(f"{row.get('GL Account', 'N/A')} - {row.get('GL NAME', 'Sin nombre')}", key=f"btn_{i}"):
+            st.session_state.selected_index = i
+            selected_index = i
 
-            file_url = row.get("file_url")
-            if file_url:
-                st.markdown(f"Archivo cargado previamente: [Ver archivo]({file_url})")
+with cols[1]:
+    if selected_index is not None:
+        row = paginated_df.iloc[selected_index]
+        st.markdown(f"### Detalles de GL {row.get('GL Account')}")
+        st.markdown(f"**GL NAME:** {row.get('GL NAME')}")
+        st.markdown(f"**Balance:** {row.get('Balance  in EUR at 31/3', 'N/A')}")
+        st.markdown(f"**País:** {row.get('Country', 'N/A')}")
+        st.markdown(f"**Entity:** {row.get('HFM CODE Entity', 'N/A')}")
+
+        current_comment = row.get("comment", "")
+        comment = st.text_area("Comentario", value=current_comment, key=f"comment_{row['_id']}")
+        if st.button("💾 Guardar comentario", key=f"save_{row['_id']}"):
+            save_comment(row['_id'], comment)
+            st.success("Comentario guardado")
+
+        uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{row['_id']}")
+        if uploaded_file:
+            upload_file(row['_id'], uploaded_file)
+            st.success("Archivo cargado correctamente")
+
+        file_url = row.get("file_url")
+        if file_url:
+            st.markdown(f"Archivo cargado previamente: [Ver archivo]({file_url})")
+    else:
+        st.markdown("<br><br><h4>Selecciona un GL para ver sus detalles</h4>", unsafe_allow_html=True)
