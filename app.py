@@ -176,7 +176,4 @@ with cols[1]:
         file_url = row.get("file_url")
         if file_url:
             st.markdown(f"Archivo cargado previamente: [Ver archivo]({file_url})")
-    else:
-        st.markdown("<br><br><h4>Selecciona un GL para ver sus detalles</h4>", unsafe_allow_html=True)
-df = df.merge(mapping_df, on="GL Account", how="left")
-    df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
+
