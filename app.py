@@ -73,13 +73,17 @@ def upload_file(doc_id, uploaded_file):
     blob.upload_from_file(uploaded_file, content_type=uploaded_file.type)
     db.collection("reconciliation_records").document(doc_id).update({"file_url": blob.public_url})
 
+def log_upload(metadata):
+    log_id = str(uuid.uuid4())
+    db.collection("upload_logs").document(log_id).set(metadata)
+
 # ---------------- Carga y Filtro de Datos ----------------
 df = load_data()
 mapping_df = load_mapping()
 
 if "GL Account" in df.columns and "GL Account" in mapping_df.columns:
-    df["GL Account"] = df["GL Account"].astype(str).str.strip()
-    mapping_df["GL Account"] = mapping_df["GL Account"].astype(str).str.strip()
+    df["GL Account"] = df["GL Account"].astype(str).str.zfill(10).str.strip()
+    mapping_df["GL Account"] = mapping_df["GL Account"].astype(str).str.zfill(10).str.strip()
     mapping_df = mapping_df.drop_duplicates(subset=["GL Account"])
     df = df.merge(mapping_df, on="GL Account", how="left")
     df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
@@ -93,34 +97,42 @@ if df.empty:
 if USER_COUNTRY_MAPPING.get(user) != "ALL":
     allowed = USER_COUNTRY_MAPPING.get(user, [])
     df = df[df['Country'].isin(allowed)]
-    if df.empty:
-        st.warning("No tienes datos asignados para revisar.")
-        st.stop()
+    country_options = sorted(df['Country'].dropna().unique())
 else:
+    allowed = df['Country'].dropna().unique().tolist()
+    country_options = sorted(allowed)
     st.success("Acceso como ADMIN: Puedes ver todos los registros y subir nuevos archivos.")
     with st.expander("🔼 Cargar nuevo archivo Excel a Firebase"):
         upload = st.file_uploader("Selecciona un archivo .xlsx para cargar", type=["xlsx"])
         if upload:
             new_data = pd.read_excel(upload)
+            now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
             for _, row in new_data.iterrows():
                 doc_id = str(uuid.uuid4())
                 record = row.to_dict()
+                record["upload_time"] = now
                 db.collection("reconciliation_records").document(doc_id).set(record)
+            log_upload({"file_name": upload.name, "uploaded_at": now, "user": user})
             st.success("Archivo cargado correctamente a Firebase")
-    df = load_data()  # Recarga tras subida
+    df = load_data()
 
 # ---------------- Interfaz tipo "chat" con burbujas de comentarios ----------------
 
-# Filtro por ReviewGroup
+# Filtros por ReviewGroup y Country
 unique_groups = df['ReviewGroup'].dropna().unique().tolist()
 selected_group = st.sidebar.selectbox("Filtrar por Review Group", ["Todos"] + sorted(unique_groups))
 if selected_group != "Todos":
     df = df[df['ReviewGroup'] == selected_group]
+
+selected_country = st.sidebar.selectbox("Filtrar por Country", ["Todos"] + country_options)
+if selected_country != "Todos":
+    df = df[df['Country'] == selected_country]
+
 st.subheader("📋 Registros asignados")
 
-records_per_page = 10
+records_per_page = 5
 max_pages = (len(df) - 1) // records_per_page + 1
-current_page = st.number_input("Página", min_value=1, max_value=max_pages, value=1, step=1)
+current_page = st.slider("Página", min_value=1, max_value=max_pages, value=1)
 start_idx = (current_page - 1) * records_per_page
 end_idx = start_idx + records_per_page
 paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
@@ -131,7 +143,8 @@ cols = st.columns([3, 9])
 with cols[0]:
     st.markdown("### 🧾 GL Accounts")
     for i, row in paginated_df.iterrows():
-        if st.button(f"{row.get('GL Account', 'N/A')} - {row.get('GL NAME', 'Sin nombre')}", key=f"btn_{i}"):
+        gl_account = str(row.get("GL Account", "")).zfill(10)
+        if st.button(f"{gl_account} - {row.get('GL NAME', 'Sin nombre')}", key=f"btn_{i}"):
             st.session_state.selected_index = i
             selected_index = i
 
@@ -162,7 +175,6 @@ with cols[1]:
             entry = f"{user} ({now}): {new_comment}"
             save_comment(doc_id, entry)
             st.session_state["selected_index"] = selected_index
-            st.query_params(updated=str(datetime.now().timestamp()))
             st.success("Comentario guardado")
 
         uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{doc_id}")
@@ -170,9 +182,9 @@ with cols[1]:
             upload_file(doc_id, uploaded_file)
             st.success("Archivo cargado correctamente")
             st.session_state["selected_index"] = selected_index
-            st.query_params(updated=str(datetime.now().timestamp()))
 
         file_url = row.get("file_url")
         if file_url:
             st.markdown(f"Archivo cargado previamente: [Ver archivo]({file_url})")
-
+    else:
+        st.markdown("<br><br><h4>Selecciona un GL para ver sus detalles</h4>", unsafe_allow_html=True)
