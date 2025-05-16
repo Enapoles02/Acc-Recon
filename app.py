@@ -112,15 +112,17 @@ else:
                 record = row.to_dict()
                 record["upload_time"] = now
                 gl_account = str(record.get("GL Account", "")).zfill(10)
-                log_upload({"file_name": upload.name, "uploaded_at": now, "user": user, "gl_account": gl_account})
+                log_upload({
+                    "file_name": upload.name,
+                    "uploaded_at": now,
+                    "user": user,
+                    "gl_account": gl_account
+                })
                 db.collection("reconciliation_records").document(doc_id).set(record)
-            
             st.success("Archivo cargado correctamente a Firebase")
     df = load_data()
 
-# ---------------- Interfaz tipo "chat" con burbujas de comentarios ----------------
-
-# Filtros por ReviewGroup y Country
+# ---------------- Interfaz tipo "chat" ----------------
 unique_groups = df['ReviewGroup'].dropna().unique().tolist()
 selected_group = st.sidebar.selectbox("Filtrar por Review Group", ["Todos"] + sorted(unique_groups))
 if selected_group != "Todos":
@@ -131,9 +133,6 @@ if selected_country != "Todos":
     df = df[df['Country'] == selected_country]
 
 st.subheader("📋 Registros asignados")
-
-# Mostrar historial solo dentro del detalle de la cuenta
-# Este bloque fue eliminado de aquí y será integrado individualmente por cuenta
 
 records_per_page = 5
 max_pages = (len(df) - 1) // records_per_page + 1
@@ -175,34 +174,50 @@ with cols[1]:
         st.markdown(f"**Entity:** {row.get('HFM CODE Entity', 'N/A')}")
         st.markdown(f"**Review Group:** {row.get('ReviewGroup', 'Others')}")
 
-        # Refrescar el comentario directamente del documento
+        # Comentarios tipo chat
         live_doc = db.collection("reconciliation_records").document(doc_id).get().to_dict()
         comment_history = live_doc.get("comment", "") if live_doc else ""
-
         if isinstance(comment_history, str) and comment_history.strip():
-         for line in comment_history.strip().split("\n"):
-
-                st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
+            for line in comment_history.strip().split("\n"):
+                st.markdown(
+                    f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>",
+                    unsafe_allow_html=True
+                )
 
         # Historial de cargas por cuenta
         st.markdown("---")
         st.markdown("### 📁 Historial de cargas de esta cuenta")
         log_docs = db.collection("upload_logs").where("gl_account", "==", row.get("GL Account")).stream()
-       log_data = sorted([doc.to_dict() for doc in log_docs], key=lambda x: x.get("uploaded_at", ""), reverse=True)
+        log_data = sorted(
+            [doc.to_dict() for doc in log_docs],
+            key=lambda x: x.get("uploaded_at", ""),
+            reverse=True
+        )
         if log_data:
+            st.markdown(f"🔁 **Reintentos:** {len(log_data)}")
             for log in log_data:
                 st.markdown(f"- 📎 **{log['file_name']}**  | 👤 {log['user']}  | 🕒 {log['uploaded_at']}")
         else:
             st.info("No hay archivos cargados para esta cuenta.")
 
         # Campo para nuevo comentario
+        new_comment = st.text_area("Nuevo comentario", key=f"comment_input_{doc_id}")
+        if st.button("💾 Guardar comentario", key=f"save_{doc_id}"):
+            tz = pytz.timezone("America/Mexico_City")
+            now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+            entry = f"{user} ({now}): {new_comment}"
+            save_comment(doc_id, entry)
+            st.success("Comentario guardado")
+            st.experimental_rerun()
+
+        uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{doc_id}")
         if uploaded_file:
             upload_file(doc_id, uploaded_file)
             st.success("Archivo cargado correctamente")
-            st.session_state["selected_index"] = selected_index
+            st.experimental_rerun()
 
         file_url = row.get("file_url")
         if file_url:
-            st.markdown(f"Archivo cargado previamente: [Ver archivo]({file_url})")
+            st.markdown(f"📄 Archivo cargado previamente: [Ver archivo]({file_url})")
     else:
         st.markdown("<br><br><h4>Selecciona un GL para ver sus detalles</h4>", unsafe_allow_html=True)
