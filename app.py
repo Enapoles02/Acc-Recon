@@ -307,7 +307,10 @@ if modo == "📋 Visor GL":
 
             if new_review != review_required:
                 new_status = "Review Required" if new_review else "Pending"
-                live_doc_ref.update({"Status Mar": new_status})
+                update_fields = {"Status Mar": new_status}
+                if new_review:
+                    update_fields["Completed Mar"] = "No"
+                live_doc_ref.update(update_fields)
                 st.success(f"✔️ Estado actualizado a: {new_status}")
                 st.session_state["refresh_timestamp"] = datetime.now().timestamp()
 
