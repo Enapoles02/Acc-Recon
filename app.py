@@ -7,9 +7,9 @@ from pandas.tseries.offsets import BDay
 import uuid
 from datetime import datetime, timedelta
 import pytz
+import plotly.express as px
 
 st.set_page_config(page_title="Reconciliación GL", layout="wide")
-st.title("📊 Dashboard de Reconciliación GL")
 
 user = st.sidebar.text_input("Usuario")
 
@@ -99,75 +99,69 @@ if df.empty:
     st.info("No hay datos cargados.")
     st.stop()
 
-# MODO DE VISTA
-modo = st.sidebar.selectbox("Selecciona vista:", ["📈 Dashboard KPI", "📋 Visor GL"])
+now = datetime.now(pytz.timezone("America/Mexico_City"))
+today = pd.Timestamp(now.date())
 
+def get_workdays(year, month):
+    first_day = pd.Timestamp(f"{year}-{month:02d}-01")
+    workdays = pd.date_range(first_day, first_day + BDay(10), freq=BDay())
+    return workdays
+
+workdays = get_workdays(today.year, today.month)
+day_is_wd1 = today == workdays[0]
+day_is_wd4 = len(workdays) >= 4 and today == workdays[3]
+
+# Región
+df["Region"] = df["Country"].apply(lambda x: "NAMER" if x in ["Canada", "United States of America"] else "LATAM")
+
+# Vista seleccionable
+modo = st.sidebar.selectbox("Selecciona vista:", ["📈 Dashboard KPI", "📋 Visor GL"])
 if modo == "📈 Dashboard KPI":
-    st.header("📊 Dashboard KPI - Estado de Conciliaciones")
-    df["Region"] = df["Country"].apply(lambda x: "NAMER" if x in ["Canada", "United States of America"] else "LATAM")
+    st.title("📊 Dashboard KPI - Estado de Conciliaciones")
 
     region_filter = st.sidebar.selectbox("🌎 Región", ["Todas"] + sorted(df["Region"].unique()))
-    company_filter = st.sidebar.selectbox("🏢 Company Code", ["Todos"] + sorted(df["HFM CODE Entity"].dropna().unique()))
-    reviewer_filter = st.sidebar.selectbox("👥 Reviewer Group", ["Todos"] + sorted(df["ReviewGroup"].dropna().unique()))
+    filtered_df = df.copy()
 
-    df_kpi = df.copy()
     if region_filter != "Todas":
-        df_kpi = df_kpi[df_kpi["Region"] == region_filter]
-    if company_filter != "Todos":
-        df_kpi = df_kpi[df_kpi["HFM CODE Entity"] == company_filter]
-    if reviewer_filter != "Todos":
-        df_kpi = df_kpi[df_kpi["ReviewGroup"] == reviewer_filter]
+        filtered_df = filtered_df[filtered_df["Region"] == region_filter]
+
+    available_countries = sorted(filtered_df["Country"].dropna().unique())
+    selected_countries = st.sidebar.multiselect("🌍 País", available_countries, default=available_countries)
+    filtered_df = filtered_df[filtered_df["Country"].isin(selected_countries)]
+
+    available_companies = sorted(filtered_df["HFM CODE Entity"].dropna().unique())
+    selected_companies = st.sidebar.multiselect("🏢 Company Code", available_companies, default=available_companies)
+    filtered_df = filtered_df[filtered_df["HFM CODE Entity"].isin(selected_companies)]
+
+    reviewer_options = sorted(filtered_df["ReviewGroup"].dropna().unique())
+    reviewer_group = st.sidebar.selectbox("👥 Reviewer Group", ["Todos"] + reviewer_options)
+    if reviewer_group != "Todos":
+        filtered_df = filtered_df[filtered_df["ReviewGroup"] == reviewer_group]
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("📌 Estado general (Completed vs Pending)")
-        pie_data = df_kpi[df_kpi["Status Mar"].isin(["Pending", "On time"])]
-        pie_counts = pie_data["Status Mar"].value_counts()
-        st.plotly_chart({
-            "data": [{
-                "values": pie_counts.values.tolist(),
-                "labels": pie_counts.index.tolist(),
-                "type": "pie"
-            }],
-            "layout": {"margin": {"l": 10, "r": 10, "b": 10, "t": 30}, "height": 350}
-        })
+        st.subheader("📌 Estado general (Pending vs On time)")
+        pie_data = filtered_df[filtered_df["Status Mar"].isin(["Pending", "On time"])]
+        if not pie_data.empty:
+            pie_fig = px.pie(pie_data, names="Status Mar", title="Estado General")
+            st.plotly_chart(pie_fig, use_container_width=True)
+        else:
+            st.info("No hay datos suficientes para la gráfica de pastel.")
 
     with col2:
         st.subheader("⏱️ Desempeño (Solo líneas completadas)")
-        bar_data = df_kpi[df_kpi["Status Mar"].isin(["On time", "Delayed", "Completed/Delayed"])]
-        bar_counts = bar_data["Status Mar"].value_counts()
-        st.bar_chart(bar_counts)
+        bar_data = filtered_df[filtered_df["Status Mar"].isin(["On time", "Delayed", "Completed/Delayed"])]
+        if not bar_data.empty:
+            bar_fig = px.bar(bar_data["Status Mar"].value_counts().reset_index(), x="index", y="Status Mar",
+                             labels={"index": "Estado", "Status Mar": "Cantidad"},
+                             title="Distribución de Estados Completados")
+            st.plotly_chart(bar_fig, use_container_width=True)
+        else:
+            st.info("No hay datos suficientes para la gráfica de barras.")
 
     st.markdown("🔍 Este dashboard refleja el estado de conciliaciones según los filtros aplicados.")
-elif modo == "📋 Visor GL":
-    now = datetime.now(pytz.timezone("America/Mexico_City"))
-    today = pd.Timestamp(now.date())
-    deadline_day = get_stored_deadline_day()
-    deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(deadline_day - 1)
-
-    def status_color(status):
-        return {
-            'On time': '🟢',
-            'Delayed': '🔴',
-            'Pending': '⚪️',
-            'Completed/Delayed': '🟢🔴'
-        }.get(status, '⚪️')
-
-    unique_groups = df['ReviewGroup'].dropna().unique().tolist()
-    selected_group = st.sidebar.selectbox("Filtrar por Review Group", ["Todos"] + sorted(unique_groups))
-    if selected_group != "Todos":
-        df = df[df['ReviewGroup'] == selected_group]
-
-    selected_country = st.sidebar.selectbox("Filtrar por Country", ["Todos"] + sorted(df['Country'].dropna().unique()))
-    if selected_country != "Todos":
-        df = df[df['Country'] == selected_country]
-
-    status_options = df['Status Mar'].dropna().unique().tolist()
-    selected_status = st.sidebar.selectbox("Filtrar por Status Mar", ["Todos"] + sorted(status_options))
-    if selected_status != "Todos":
-        df = df[df['Status Mar'] == selected_status]
-
+if modo == "📋 Visor GL":
     records_per_page = 5
     max_pages = (len(df) - 1) // records_per_page + 1
     if "current_page" not in st.session_state:
@@ -185,8 +179,15 @@ elif modo == "📋 Visor GL":
     start_idx = (current_page - 1) * records_per_page
     end_idx = start_idx + records_per_page
     paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
-
     selected_index = st.session_state.get("selected_index", None)
+
+    def status_color(status):
+        return {
+            'On time': '🟢',
+            'Delayed': '🔴',
+            'Pending': '⚪️',
+            'Completed/Delayed': '🟢🔴'
+        }.get(status, '⚪️')
 
     cols = st.columns([3, 9])
     with cols[0]:
@@ -222,7 +223,10 @@ elif modo == "📋 Visor GL":
 
             if new_check != completed_checked:
                 new_status = "Yes" if new_check else "No"
+                now = datetime.now(pytz.timezone("America/Mexico_City"))
                 timestamp_str = now.strftime("%Y-%m-%d %H:%M:%S")
+                today = pd.Timestamp(now.date())
+                deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(get_stored_deadline_day() - 1)
 
                 if new_check:
                     status_result = "On time" if today <= deadline_date else "Completed/Delayed"
@@ -266,8 +270,8 @@ elif modo == "📋 Visor GL":
 
             new_comment = st.text_area("Nuevo comentario", key=f"comment_input_{doc_id}")
             if st.button("💾 Guardar comentario", key=f"save_{doc_id}"):
-                now_str = now.strftime("%Y-%m-%d %H:%M:%S")
-                entry = f"{user} ({now_str}): {new_comment}"
+                now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
+                entry = f"{user} ({now}): {new_comment}"
                 save_comment(doc_id, entry)
                 st.success("Comentario guardado")
                 st.session_state["refresh_timestamp"] = datetime.now().timestamp()
@@ -277,9 +281,10 @@ elif modo == "📋 Visor GL":
                 if st.button("✅ Confirmar carga de archivo", key=f"confirm_upload_{doc_id}"):
                     file_url = upload_file_to_bucket(gl_account, uploaded_file)
                     db.collection("reconciliation_records").document(doc_id).update({"file_url": file_url})
+                    now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
                     log_upload({
                         "file_name": uploaded_file.name,
-                        "uploaded_at": now.strftime("%Y-%m-%d %H:%M:%S"),
+                        "uploaded_at": now,
                         "user": user,
                         "gl_account": gl_account,
                         "file_url": file_url
