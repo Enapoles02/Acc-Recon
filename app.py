@@ -187,8 +187,8 @@ with cols[1]:
         # Historial de cargas por cuenta
         st.markdown("---")
         st.markdown("### 📁 Historial de cargas de esta cuenta")
-        log_docs = db.collection("upload_logs").where("gl_account", "==", row.get("GL Account")).order_by("uploaded_at", direction=firestore.Query.DESCENDING).stream()
-        log_data = [doc.to_dict() for doc in log_docs]
+        log_docs = db.collection("upload_logs").where("gl_account", "==", row.get("GL Account")).stream()
+       log_data = sorted([doc.to_dict() for doc in log_docs], key=lambda x: x.get("uploaded_at", ""), reverse=True)
         if log_data:
             for log in log_data:
                 st.markdown(f"- 📎 **{log['file_name']}**  | 👤 {log['user']}  | 🕒 {log['uploaded_at']}")
