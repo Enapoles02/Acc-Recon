@@ -136,31 +136,43 @@ modo = st.sidebar.selectbox("Selecciona vista:", ["📈 Dashboard KPI", "📋 Vi
 if user == "ADMIN":
     st.sidebar.markdown("## ⚙️ Opciones de Admin")
 
-    # Cambiar día límite de WD
-    current_deadline = get_stored_deadline_day()
+    # Asegurar que el valor no sea mayor a 10 para evitar errores
+    current_deadline = min(get_stored_deadline_day(), 10)
+
     new_deadline = st.sidebar.number_input("📅 Día límite (WD)", min_value=1, max_value=10, value=current_deadline, step=1)
     if new_deadline != current_deadline:
         set_stored_deadline_day(new_deadline)
         st.sidebar.success(f"Día límite actualizado a WD{new_deadline}")
 
-    # Botón para reiniciar el mes (resetear estatus)
+    # Botón para reiniciar todos los estados del mes
     if st.sidebar.button("♻️ Resetear estados del mes"):
-        for doc in db.collection("reconciliation_records").stream():
+        docs = list(db.collection("reconciliation_records").stream())
+        total = len(docs)
+        progress = st.sidebar.progress(0, text="Reiniciando estados...")
+
+        for i, doc in enumerate(docs):
             doc.reference.update({
                 "Completed Mar": "No",
                 "Status Mar": "Pending",
                 "Completed Timestamp": firestore.DELETE_FIELD,
                 "Deadline Used": firestore.DELETE_FIELD
             })
+            progress.progress((i + 1) / total)
+
+        progress.empty()
         st.sidebar.success("Todos los estados fueron reiniciados.")
 
-    # Botón para forzar evaluación de estatus
+    # Botón para forzar evaluación de estatus "On time" / "Completed/Delayed"
     if st.sidebar.button("📌 Forzar evaluación de 'On time' / 'Delayed'"):
         wd = get_stored_deadline_day()
         today = pd.Timestamp(datetime.now(pytz.timezone("America/Mexico_City")).date())
         deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(wd - 1)
 
-        for doc in db.collection("reconciliation_records").stream():
+        docs = list(db.collection("reconciliation_records").stream())
+        total = len(docs)
+        progress = st.sidebar.progress(0, text="Evaluando estatus...")
+
+        for i, doc in enumerate(docs):
             data = doc.to_dict()
             completed = data.get("Completed Mar", "No").strip().upper()
             if completed == "YES":
@@ -172,7 +184,11 @@ if user == "ADMIN":
                         "Status Mar": status,
                         "Deadline Used": deadline_date.strftime("%Y-%m-%d")
                     })
+            progress.progress((i + 1) / total)
+
+        progress.empty()
         st.sidebar.success("Evaluación de estado completada.")
+
 
 # -------------------------------
 # KPI DASHBOARD
