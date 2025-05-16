@@ -147,6 +147,19 @@ if now.day in [1, 4]:
             "Status Mar": status,
             "Deadline Used": deadline_date.strftime("%Y-%m-%d")
         })
+# 🔁 Si ya pasó la fecha límite, forzar "Delayed" en todos los incompletos
+if today > deadline_date:
+    def force_delayed(row):
+        completed = str(row.get("Completed Mar", "")).strip().upper()
+        return "Delayed" if completed != "YES" else row.get("Status Mar", "On time")
+
+    df["Status Mar"] = df.apply(force_delayed, axis=1)
+
+    for _, row in df.iterrows():
+        if row["Status Mar"] == "Delayed":
+            db.collection("reconciliation_records").document(row["_id"]).update({
+                "Status Mar": "Delayed"
+            })
 
 # ---------------- Filtros ----------------
 
