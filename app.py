@@ -3,10 +3,10 @@ import pandas as pd
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 import uuid
-import io
 from datetime import datetime
 import pytz
 
+# ---------------- Configuración inicial ----------------
 st.set_page_config(page_title="Reconciliación GL", layout="wide")
 st.title("📊 Dashboard de Reconciliación GL")
 
@@ -24,6 +24,7 @@ if not user:
     st.warning("Ingresa tu nombre de usuario para continuar.")
     st.stop()
 
+# ---------------- Inicializar Firebase ----------------
 @st.cache_resource
 def init_firebase():
     firebase_creds = st.secrets["firebase_credentials"]
@@ -37,6 +38,7 @@ def init_firebase():
 
 db, bucket = init_firebase()
 
+# ---------------- Funciones ----------------
 def load_data():
     docs = db.collection("reconciliation_records").stream()
     recs = []
@@ -117,7 +119,7 @@ else:
                     })
                     db.collection("reconciliation_records").document(doc_id).set(record)
                 st.success("Archivo cargado correctamente")
-
+                st.session_state["refresh_timestamp"] = datetime.now().timestamp()
     df = load_data()
 
 # ---------------- Filtros ----------------
@@ -195,14 +197,14 @@ with cols[1]:
             entry = f"{user} ({now}): {new_comment}"
             save_comment(doc_id, entry)
             st.success("Comentario guardado")
-            st.query_params(updated=str(datetime.now().timestamp()))
+            st.session_state["refresh_timestamp"] = datetime.now().timestamp()
 
         uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{doc_id}")
         if uploaded_file:
             if st.button("✅ Confirmar carga de archivo", key=f"confirm_upload_{doc_id}"):
                 upload_file(doc_id, uploaded_file)
                 st.success("Archivo cargado correctamente")
-                st.query_params(updated=str(datetime.now().timestamp()))
+                st.session_state["refresh_timestamp"] = datetime.now().timestamp()
 
         file_url = row.get("file_url")
         if file_url:
