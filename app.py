@@ -137,7 +137,7 @@ with cols[1]:
             entry = f"{user} ({now}): {new_comment}"
             save_comment(doc_id, entry)
             st.session_state["selected_index"] = selected_index
-            st.experimental_set_query_params(updated=str(datetime.now().timestamp()))
+            st.query_params(updated=str(datetime.now().timestamp()))
             st.success("Comentario guardado")
 
         uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{doc_id}")
@@ -145,7 +145,7 @@ with cols[1]:
             upload_file(doc_id, uploaded_file)
             st.success("Archivo cargado correctamente")
             st.session_state["selected_index"] = selected_index
-            st.experimental_set_query_params(updated=str(datetime.now().timestamp()))
+            st.query_params(updated=str(datetime.now().timestamp()))
 
         file_url = row.get("file_url")
         if file_url:
