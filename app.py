@@ -221,7 +221,7 @@ if modo == "📋 Visor GL":
             'Pending': '⚪️',
             'Review Required': '🟡'
         }
-        return color_map.get(status, '⚪️').get(status, '⚪️').get(status, '⚪️').get(status, '⚪️')
+        return color_map.get(status, '⚪️')
 
     cols = st.columns([3, 9])
     with cols[0]:
