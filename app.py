@@ -215,10 +215,28 @@ if modo == "📋 Visor GL":
     paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
     selected_index = st.session_state.get("selected_index", None)
 
+    # Filtros por país, entidad y estado
+    with st.sidebar:
+        st.markdown("### 🔎 Filtros")
+        unique_countries = sorted(df["Country"].dropna().unique())
+        selected_countries = st.multiselect("🌍 País", unique_countries, default=unique_countries)
+
+        unique_entities = sorted(df["HFM CODE Entity"].dropna().unique())
+        selected_entities = st.multiselect("🏢 Entity", unique_entities, default=unique_entities)
+
+        unique_status = sorted(df["Status Mar"].dropna().unique())
+        selected_status = st.multiselect("📌 Status", unique_status, default=unique_status)
+
+        df = df[df["Country"].isin(selected_countries)]
+        df = df[df["HFM CODE Entity"].isin(selected_entities)]
+        df = df[df["Status Mar"].isin(selected_status)]
+
     def status_color(status):
         color_map = {
+            'On time': '🟢',
             'Delayed': '🔴',
             'Pending': '⚪️',
+            'Completed/Delayed': '🟢',
             'Review Required': '🟡'
         }
         return color_map.get(status, '⚪️')
@@ -233,7 +251,7 @@ if modo == "📋 Visor GL":
             gl_name = str(row.get("GL NAME", "Sin nombre"))
             if gl_name is None or gl_name == "Ellipsis" or gl_name == str(...):
                 gl_name = "Sin nombre"
-            label = f"{gl_account} - {gl_name}" if status in ['On time', 'Completed/Delayed'] else f"{color} {gl_account} - {gl_name}"
+            label = f"{color} {gl_account} - {gl_name}"
             if st.button(label, key=f"btn_{i}"):
                 st.session_state.selected_index = i
                 selected_index = i
