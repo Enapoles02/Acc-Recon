@@ -7,11 +7,9 @@ import io
 from datetime import datetime
 import pytz
 
-# ---------------- Configuracion inicial ----------------
 st.set_page_config(page_title="Reconciliación GL", layout="wide")
 st.title("📊 Dashboard de Reconciliación GL")
 
-# ---------------- Autenticacion por usuario ----------------
 user = st.sidebar.text_input("Usuario")
 
 USER_COUNTRY_MAPPING = {
@@ -26,7 +24,6 @@ if not user:
     st.warning("Ingresa tu nombre de usuario para continuar.")
     st.stop()
 
-# ---------------- Inicializar Firebase ----------------
 @st.cache_resource
 def init_firebase():
     firebase_creds = st.secrets["firebase_credentials"]
@@ -40,7 +37,6 @@ def init_firebase():
 
 db, bucket = init_firebase()
 
-# ---------------- Funciones ----------------
 def load_data():
     docs = db.collection("reconciliation_records").stream()
     recs = []
@@ -77,7 +73,7 @@ def log_upload(metadata):
     log_id = str(uuid.uuid4())
     db.collection("upload_logs").document(log_id).set(metadata)
 
-# ---------------- Carga y Filtro de Datos ----------------
+# ---------------- Carga de datos ----------------
 df = load_data()
 mapping_df = load_mapping()
 
@@ -88,7 +84,7 @@ if "GL Account" in df.columns and "GL Account" in mapping_df.columns:
     df = df.merge(mapping_df, on="GL Account", how="left")
     df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
 else:
-    st.warning("No se pudo hacer el merge con Mapping.csv. Revisa los nombres de las columnas.")
+    st.warning("No se pudo hacer el merge con Mapping.csv.")
 
 if df.empty:
     st.info("No hay datos cargados.")
@@ -105,24 +101,26 @@ else:
     with st.expander("🔼 Cargar nuevo archivo Excel a Firebase"):
         upload = st.file_uploader("Selecciona un archivo .xlsx para cargar", type=["xlsx"])
         if upload:
-            new_data = pd.read_excel(upload)
-            now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
-            for _, row in new_data.iterrows():
-                doc_id = str(uuid.uuid4())
-                record = row.to_dict()
-                record["upload_time"] = now
-                gl_account = str(record.get("GL Account", "")).zfill(10)
-                log_upload({
-                    "file_name": upload.name,
-                    "uploaded_at": now,
-                    "user": user,
-                    "gl_account": gl_account
-                })
-                db.collection("reconciliation_records").document(doc_id).set(record)
-            st.success("Archivo cargado correctamente a Firebase")
+            if st.button("✅ Confirmar carga del archivo"):
+                new_data = pd.read_excel(upload)
+                now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
+                for _, row in new_data.iterrows():
+                    doc_id = str(uuid.uuid4())
+                    record = row.to_dict()
+                    record["upload_time"] = now
+                    gl_account = str(record.get("GL Account", "")).zfill(10)
+                    log_upload({
+                        "file_name": upload.name,
+                        "uploaded_at": now,
+                        "user": user,
+                        "gl_account": gl_account
+                    })
+                    db.collection("reconciliation_records").document(doc_id).set(record)
+                st.success("Archivo cargado correctamente")
+
     df = load_data()
 
-# ---------------- Interfaz tipo "chat" ----------------
+# ---------------- Filtros ----------------
 unique_groups = df['ReviewGroup'].dropna().unique().tolist()
 selected_group = st.sidebar.selectbox("Filtrar por Review Group", ["Todos"] + sorted(unique_groups))
 if selected_group != "Todos":
@@ -174,47 +172,37 @@ with cols[1]:
         st.markdown(f"**Entity:** {row.get('HFM CODE Entity', 'N/A')}")
         st.markdown(f"**Review Group:** {row.get('ReviewGroup', 'Others')}")
 
-        # Comentarios tipo chat
         live_doc = db.collection("reconciliation_records").document(doc_id).get().to_dict()
         comment_history = live_doc.get("comment", "") if live_doc else ""
         if isinstance(comment_history, str) and comment_history.strip():
             for line in comment_history.strip().split("\n"):
-                st.markdown(
-                    f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>",
-                    unsafe_allow_html=True
-                )
+                st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
 
-        # Historial de cargas por cuenta
         st.markdown("---")
         st.markdown("### 📁 Historial de cargas de esta cuenta")
         log_docs = db.collection("upload_logs").where("gl_account", "==", row.get("GL Account")).stream()
-        log_data = sorted(
-            [doc.to_dict() for doc in log_docs],
-            key=lambda x: x.get("uploaded_at", ""),
-            reverse=True
-        )
+        log_data = sorted([doc.to_dict() for doc in log_docs], key=lambda x: x.get("uploaded_at", ""), reverse=True)
         if log_data:
             st.markdown(f"🔁 **Reintentos:** {len(log_data)}")
             for log in log_data:
-                st.markdown(f"- 📎 **{log['file_name']}**  | 👤 {log['user']}  | 🕒 {log['uploaded_at']}")
+                st.markdown(f"- 📎 **{log['file_name']}** | 👤 {log['user']} | 🕒 {log['uploaded_at']}")
         else:
             st.info("No hay archivos cargados para esta cuenta.")
 
-        # Campo para nuevo comentario
         new_comment = st.text_area("Nuevo comentario", key=f"comment_input_{doc_id}")
         if st.button("💾 Guardar comentario", key=f"save_{doc_id}"):
-            tz = pytz.timezone("America/Mexico_City")
-            now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+            now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
             entry = f"{user} ({now}): {new_comment}"
             save_comment(doc_id, entry)
             st.success("Comentario guardado")
-            st.experimental_rerun()
+            st.query_params(updated=str(datetime.now().timestamp()))
 
         uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{doc_id}")
         if uploaded_file:
-            upload_file(doc_id, uploaded_file)
-            st.success("Archivo cargado correctamente")
-            st.experimental_rerun()
+            if st.button("✅ Confirmar carga de archivo", key=f"confirm_upload_{doc_id}"):
+                upload_file(doc_id, uploaded_file)
+                st.success("Archivo cargado correctamente")
+                st.query_params(updated=str(datetime.now().timestamp()))
 
         file_url = row.get("file_url")
         if file_url:
