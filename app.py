@@ -139,6 +139,14 @@ if selected_country != "Todos":
 
 st.subheader("📋 Registros asignados")
 
+# Mostrar color en la lista según Status Mar
+def status_color(status):
+    return {
+        'On time': '🟢',
+        'Delayed': '🔴',
+        'No': '⚪️'
+    }.get(status, '⚪️')
+
 records_per_page = 5
 max_pages = (len(df) - 1) // records_per_page + 1
 if "current_page" not in st.session_state:
@@ -164,7 +172,10 @@ with cols[0]:
     st.markdown("### 🧾 GL Accounts")
     for i, row in paginated_df.iterrows():
         gl_account = str(row.get("GL Account", "")).zfill(10)
-        if st.button(f"{gl_account} - {row.get('GL NAME', 'Sin nombre')}", key=f"btn_{i}"):
+        status = row.get("Status Mar", "No")
+        color = status_color(status)
+        label = f"{color} {gl_account} - {row.get('GL NAME', 'Sin nombre')}"
+        if st.button(label, key=f"btn_{i}"):
             st.session_state.selected_index = i
             selected_index = i
 
@@ -183,12 +194,11 @@ with cols[1]:
 
         live_doc_ref = db.collection("reconciliation_records").document(doc_id)
         live_doc = live_doc_ref.get().to_dict()
-        comment_history = live_doc.get("comment", "") if live_doc else ""
 
-        # ✅ Checkbox de Completed Mar
+        # ✅ Checkbox renombrado a "Completed"
         completed_val = live_doc.get("Completed Mar", "No")
         completed_checked = completed_val == "Yes"
-        new_check = st.checkbox("✅ Completed Mar", value=completed_checked, key=f"completed_{doc_id}")
+        new_check = st.checkbox("✅ Completed", value=completed_checked, key=f"completed_{doc_id}")
 
         if new_check != completed_checked:
             new_status = "Yes" if new_check else "No"
@@ -208,6 +218,12 @@ with cols[1]:
             st.success(f"✔️ Estado actualizado: {new_status} | {status_result}")
             st.session_state["refresh_timestamp"] = datetime.now().timestamp()
 
+        # Mostrar siempre el status
+        current_status = live_doc.get("Status Mar", "Pending")
+        st.markdown(f"**status:** {current_status}")
+
+        # Comentarios
+        comment_history = live_doc.get("comment", "") or ""
         if isinstance(comment_history, str) and comment_history.strip():
             for line in comment_history.strip().split("\n"):
                 st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
@@ -230,7 +246,7 @@ with cols[1]:
             st.info("No hay archivos cargados para esta cuenta.")
 
         new_comment = st.text_area("Nuevo comentario", key=f"comment_input_{doc_id}")
-        if st.button("💾 Guardar comentario", key=f"save_{doc_id}"):
+        if st.button("💾 Guardar comentario", key<f"save_{doc_id}"):  # corrected syntax
             now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
             entry = f"{user} ({now}): {new_comment}"
             save_comment(doc_id, entry)
@@ -241,7 +257,9 @@ with cols[1]:
         if uploaded_file:
             if st.button("✅ Confirmar carga de archivo", key=f"confirm_upload_{doc_id}"):
                 file_url = upload_file_to_bucket(gl_account, uploaded_file)
-                db.collection("reconciliation_records").document(doc_id).update({"file_url": file_url})
+                db.collection(
+                    "reconciliation_records"
+                ).document(doc_id).update({"file_url": file_url})
                 now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
                 log_upload({
                     "file_name": uploaded_file.name,
