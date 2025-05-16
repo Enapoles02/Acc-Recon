@@ -2,8 +2,7 @@ import streamlit as st
 import pandas as pd
 import datetime
 import firebase_admin
-from firebase_admin import credentials, firestore, storage
-from io import BytesIO
+from firebase_admin import credentials, firestore
 
 # ------------------ Configuración general ------------------
 st.set_page_config(page_title="Reconciliación GL", layout="wide")
@@ -30,7 +29,7 @@ def load_mapping():
     df = df.rename(columns={"GL Account": "GL Account", "Group": "ReviewGroup"})
     return df
 
-# ------------------ Funciones de carga ------------------
+# ------------------ Cargar datos desde Firebase ------------------
 @st.cache_data(ttl=300)
 def load_index_data():
     db, _ = init_firebase()
@@ -47,35 +46,7 @@ def load_index_data():
     df.columns = df.columns.str.strip().str.replace(r'\s+', ' ', regex=True)
     return df
 
-@st.cache_data(ttl=60)
-def load_record(rec_id):
-    db, _ = init_firebase()
-    doc = db.collection("reconciliation_records").document(rec_id).get()
-    if not doc.exists:
-        return {}
-    d = doc.to_dict()
-    d["_id"] = rec_id
-    return d
-
-@st.cache_data(ttl=60)
-def get_comments(rec_id):
-    db, _ = init_firebase()
-    coll = db.collection("reconciliation_records").document(rec_id).collection("comments")
-    coms = []
-    for d in coll.order_by("timestamp").stream():
-        c = d.to_dict()
-        ts = c.get("timestamp")
-        if hasattr(ts, "to_datetime"):
-            c["timestamp"] = ts.to_datetime()
-        coms.append(c)
-    return coms
-
-def add_comment(rec_id, user, text):
-    db, _ = init_firebase()
-    db.collection("reconciliation_records").document(rec_id).collection("comments").add({
-        "user": user, "text": text, "timestamp": firestore.SERVER_TIMESTAMP
-    })
-
+# ------------------ Función para mostrar nombre corto país ------------------
 def abbr(country):
     m = {
         "United States of America": "USA",
@@ -102,15 +73,7 @@ def main():
     df.columns = df.columns.str.strip().str.replace(r'\s+', ' ', regex=True)
     map_df.columns = map_df.columns.str.strip().str.replace(r'\s+', ' ', regex=True)
 
-    if is_admin:
-        with st.expander("🛠 Depuración de columnas"):
-            st.write("**Columnas en df (desde Firebase):**")
-            st.write(df.columns.tolist())
-            st.dataframe(df, use_container_width=True)
-            st.write("**Columnas en map_df (desde Mapping.csv):**")
-            st.write(map_df.columns.tolist())
-            st.dataframe(map_df, use_container_width=True)
-
+    # Validación GL Account
     if "GL Account" in df.columns and "GL Account" in map_df.columns:
         df["GL Account"] = df["GL Account"].astype(str).str.strip()
         map_df["GL Account"] = map_df["GL Account"].astype(str).str.strip()
@@ -124,6 +87,7 @@ def main():
         st.warning("Ingresa tu usuario para filtrar tareas.")
         return
 
+    # Asignación de países por usuario
     mapping = {
         "Paula Sarachaga": ["Argentina", "Chile", "Guatemala"],
         "Napoles Enrique": ["Canada"],
@@ -131,48 +95,42 @@ def main():
         "Guadalupe": ["Mexico", "Peru", "Panama"]
     }
 
-    if 'country' in df.columns:
-        if is_admin:
-            allowed = df['country'].unique().tolist()
-        else:
-            allowed = mapping.get(user, [])
-        if allowed:
-            df = df[df['country'].isin(allowed)]
-        if not df.empty and not is_admin:
-            if df['country'].isna().all():
-                st.warning("La columna 'country' está vacía.")
-        elif df.empty and not is_admin:
+    if "country" in df.columns:
+        df["country"] = df["country"].astype(str).str.strip()
+        allowed = df["country"].unique().tolist() if is_admin else mapping.get(user, [])
+        df = df[df["country"].isin(allowed)]
+
+        if df.empty:
             st.warning("No hay datos disponibles para tu país o usuario.")
-    elif not is_admin:
-        st.warning("No se encontró la columna 'country' y no se pueden aplicar filtros.")
-        df = df.iloc[0:0]
+    else:
+        if not is_admin:
+            st.warning("No se encontró la columna 'country' y no se pueden aplicar filtros.")
+            df = df.iloc[0:0]
 
     st.sidebar.markdown("---")
     q = st.sidebar.text_input("Buscar cuenta")
     review_filter = st.sidebar.selectbox("Grupo de revisión", options=["All"] + sorted(df["ReviewGroup"].unique().tolist()))
 
     if q:
-        df = df[df['gl_name'].str.contains(q, case=False, na=False)]
+        df = df[df["gl_name"].str.contains(q, case=False, na=False)]
     if review_filter != "All":
         df = df[df["ReviewGroup"] == review_filter]
 
-    if 'start' not in st.session_state:
-        st.session_state['start'] = 0
-    n = len(df)
+    # Mostrar lista
+    if "start" not in st.session_state:
+        st.session_state["start"] = 0
+
     colL, colR = st.columns([1, 3])
     with colL:
         st.markdown("### Cuentas GL")
-        if st.button("↑") and st.session_state['start'] > 0:
-            st.session_state['start'] -= 1
-        if st.button("↓") and st.session_state['start'] < n - 5:
-            st.session_state['start'] += 1
-        sub = df.iloc[st.session_state['start']:st.session_state['start'] + 5]
+        if st.button("↑") and st.session_state["start"] > 0:
+            st.session_state["start"] -= 1
+        if st.button("↓") and st.session_state["start"] < len(df) - 5:
+            st.session_state["start"] += 1
+        sub = df.iloc[st.session_state["start"]:st.session_state["start"] + 5]
         for idx, r in sub.iterrows():
-            gl_name = r.get('gl_name', '')
-            gl_account = r.get('GL Account', '')
-            country = r.get('country', '')
-            key = f"rec_{idx}_{gl_account}_{country}"
-            label = f"{gl_name} - {gl_account} ({abbr(country)})"
+            key = f"sel_{idx}_{r['_id']}"
+            label = f"{r.get('gl_name', '')} - {r.get('GL Account', '')} ({abbr(r.get('country', ''))})"
             if st.button(label, key=key):
                 st.session_state['selected'] = r['_id']
 
@@ -181,59 +139,20 @@ def main():
         if not sel:
             st.info("Selecciona una cuenta del panel izquierdo.")
         else:
-            rec = load_record(sel)
-            st.subheader(f"{rec.get('gl_name')} - {rec.get('GL Account', '')} ({abbr(rec.get('country', ''))})")
-            for f in ['Assigned Reviewer', 'Cluster']:
-                if f in rec:
-                    st.write(f"**{f}:** {rec[f]}")
-            comp = str(rec.get('Completed', '')).lower() in ['yes', 'true', '1']
-            nv = st.checkbox("Completed", value=comp)
-            try:
-                dv = pd.to_datetime(rec.get('Completion Date')).date()
-            except:
-                dv = datetime.date.today()
-            nd = st.date_input("Completion Date", value=dv)
+            rec = df[df['_id'] == sel].iloc[0].to_dict()
+            st.subheader(f"{rec.get('gl_name')} - {rec.get('GL Account')} ({abbr(rec.get('country', ''))})")
+            st.write(f"**Assigned Reviewer:** {rec.get('Assigned Reviewer', '')}")
+            st.write(f"**Cluster:** {rec.get('Cluster', '')}")
+            st.checkbox("Completed", value=rec.get("Completed", "").lower() in ['yes', 'true', '1'])
+            st.date_input("Completion Date", value=datetime.date.today())
 
-            deadline_base = datetime.date.today().replace(day=1) + datetime.timedelta(days=30)
-            wd_day = st.sidebar.number_input("Working Day para Deadline (WD+X):", min_value=1, max_value=10, value=3)
-            deadline = deadline_base + datetime.timedelta(days=wd_day)
-            status = "Delay" if not nv and nd > deadline else "On time"
-            st.write(f"⏱ Estado: `{status}` (Deadline: {deadline})")
-
-            if st.button("Guardar cambios"):
-                updates = {
-                    'Completed': 'Yes' if nv else 'No',
-                    'Completion Date': nd.strftime('%Y-%m-%d'),
-                    'Status': status
-                }
-                init_firebase()[0].collection("reconciliation_records").document(sel).update(updates)
-                st.success("Registro actualizado")
-
-            st.markdown("---")
-            st.subheader("Comentarios")
-            for c in get_comments(sel):
-                ts = c.get('timestamp')
-                txt = ts.strftime('%Y-%m-%d %H:%M') if hasattr(ts, 'strftime') else ''
-                st.markdown(f"**{c.get('user')}** ({txt}): {c.get('text')}")
-            nc = st.text_area("Nuevo comentario", key=f"com_{sel}")
-            if st.button("Agregar comentario", key=f"addcom_{sel}"):
-                if user and nc:
-                    add_comment(sel, user, nc)
-                    st.success("Comentario agregado")
-                else:
-                    st.error("Usuario y texto requeridos.")
-
+    # Debug solo visible para admin
     if is_admin:
-        st.markdown("---")
-        st.subheader("📦 Data combinada completa")
-        st.dataframe(df, use_container_width=True)
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="⬇️ Descargar Data combinada",
-            data=csv,
-            file_name="data_combinada.csv",
-            mime='text/csv'
-        )
+        with st.expander("🛠 Depuración Admin"):
+            st.write("Columnas actuales:", df.columns.tolist())
+            st.dataframe(df, use_container_width=True)
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button("⬇️ Descargar Data combinada", data=csv, file_name="data_combinada.csv", mime='text/csv')
 
 if __name__ == '__main__':
     main()
