@@ -136,7 +136,7 @@ if USER_COUNTRY_MAPPING.get(user) == "ALL":
             st.sidebar.success("✅ Todos los registros han sido reiniciados.")
 
 if st.sidebar.button("🔄 Forzar evaluación de Status Mar"):
-    with st.spinner("Recalculando y sobrescribiendo en Firebase..."):
+    with st.spinner("Recalculando estados desde Firebase con nueva fecha límite..."):
         records = db.collection("reconciliation_records").stream()
         for doc in records:
             data = doc.to_dict()
@@ -153,14 +153,16 @@ if st.sidebar.button("🔄 Forzar evaluación de Status Mar"):
                 else:
                     status = "Completed/Delayed"
             else:
-                status = "Delayed"
+                # Not completed, evaluate if still within time or too late
+                status = "Pending" if today <= deadline_date else "Delayed"
 
             db.collection("reconciliation_records").document(doc.id).update({
                 "Status Mar": status,
                 "Deadline Used": deadline_date.strftime("%Y-%m-%d")
             })
 
-    st.sidebar.success("✅ Se sobrescribió el campo Status Mar en Firestore.")
+    st.sidebar.success("✅ Estados sobrescritos en Firebase con la nueva fecha límite.")
+
 
 else:
     deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(2)
