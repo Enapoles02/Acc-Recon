@@ -104,6 +104,7 @@ if "GL Account" in df.columns and "GL Account" in mapping_df.columns:
     mapping_df = mapping_df.drop_duplicates(subset=["GL Account"])
     df = df.merge(mapping_df, on="GL Account", how="left")
     df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
+    df["Usuario Asignado"] = df.apply(map_user_from_access, axis=1)
 else:
     st.warning("No se pudo hacer el merge con Mapping.csv.")
 
