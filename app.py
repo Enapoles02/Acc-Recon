@@ -11,9 +11,12 @@ import plotly.express as px
 
 st.set_page_config(page_title="Reconciliación GL", layout="wide")
 
+# -------------------------
+# AUTENTICACIÓN Y ROLES
+# -------------------------
+
 user = st.sidebar.text_input("Usuario")
 
-# Nuevo mapping combinado por país y preparer stream
 USER_ACCESS = {
     "Paula Sarachaga": {"countries": ["Argentina", "Chile", "Guatemala"], "streams": "ALL"},
     "Napoles Enrique": {"countries": ["Canada"], "streams": ["GL"]},
@@ -21,15 +24,27 @@ USER_ACCESS = {
     "Guadalupe": {"countries": ["Mexico", "Peru", "Panama"], "streams": "ALL"},
     "Gabriel Aviles": {"countries": ["Canada", "United States of America"], "streams": ["RTR-FA"]},
     "Delhumeau Luis": {"countries": ["Canada"], "streams": ["RTR-ICO"]},
-    "ADMIN": {"countries": "ALL", "streams": "ALL"},
+    "Miriam Sanchez": {"countries": "ALL", "streams": ["RTR", "GL"]},
     "Guillermo Mayoral": {"countries": "ALL", "streams": "ALL"},
-    "Guillermo Guarneros": {"countries": "ALL", "streams": "ALL"}
+    "Guillermo Guarneros": {"countries": "ALL", "streams": "ALL"},
+    "ADMIN": {"countries": "ALL", "streams": "ALL"}
 }
 
+USER_ROLES = {
+    "Miriam Sanchez": "REVIEWER",
+    "Guillermo Mayoral": "APPROVER",
+    "Guillermo Guarneros": "APPROVER",
+    "ADMIN": "ADMIN"
+}
 
-if not user:
-    st.warning("Ingresa tu nombre de usuario para continuar.")
+user_info = USER_ACCESS.get(user)
+if not user_info:
+    st.warning("Usuario no reconocido.")
     st.stop()
+
+allowed_countries = user_info["countries"]
+allowed_streams = user_info["streams"]
+user_role = USER_ROLES.get(user, "FILLER")
 
 @st.cache_resource
 def init_firebase():
@@ -89,6 +104,10 @@ def log_upload(metadata):
     log_id = str(uuid.uuid4())
     db.collection("upload_logs").document(log_id).set(metadata)
 
+# -------------------------
+# CARGA Y FILTROS
+# -------------------------
+
 df = load_data()
 mapping_df = load_mapping()
 
@@ -101,22 +120,14 @@ if "GL Account" in df.columns and "GL Account" in mapping_df.columns:
 else:
     st.warning("No se pudo hacer el merge con Mapping.csv.")
 
-if df.empty:
-    st.info("No hay datos cargados.")
-    st.stop()
-# Obtener filtros del usuario
-user_info = USER_ACCESS.get(user, {})
-allowed_countries = user_info.get("countries", [])
-allowed_streams = user_info.get("streams", [])
-
-# Aplicar filtro por país
+# Aplicar filtros
 if allowed_countries != "ALL":
     df = df[df["Country"].isin(allowed_countries)]
-
-# Aplicar filtro por Preparer Stream
 if allowed_streams != "ALL":
     df = df[df["Preparer Stream"].isin(allowed_streams)]
-
+# -------------------------
+# FECHAS Y DÍAS HÁBILES
+# -------------------------
 now = datetime.now(pytz.timezone("America/Mexico_City"))
 today = pd.Timestamp(now.date())
 
@@ -129,30 +140,30 @@ workdays = get_workdays(today.year, today.month)
 day_is_wd1 = today == workdays[0]
 day_is_wd4 = len(workdays) >= 4 and today == workdays[3]
 
-# Región por país
+# -------------------------
+# REGIÓN Y VISTA
+# -------------------------
 df["Region"] = df["Country"].apply(lambda x: "NAMER" if x in ["Canada", "United States of America"] else "LATAM")
-
-# Selección de vista
 modo = st.sidebar.selectbox("Selecciona vista:", ["📈 Dashboard KPI", "📋 Visor GL"])
 
-# Opciones exclusivas para ADMIN
+# -------------------------
+# HERRAMIENTAS DE ADMIN
+# -------------------------
 if user == "ADMIN":
     st.sidebar.markdown("## ⚙️ Opciones de Admin")
 
-    # Asegurar que el valor no sea mayor a 10 para evitar errores
+    # Día límite
     current_deadline = min(get_stored_deadline_day(), 10)
-
     new_deadline = st.sidebar.number_input("📅 Día límite (WD)", min_value=1, max_value=10, value=current_deadline, step=1)
     if new_deadline != current_deadline:
         set_stored_deadline_day(new_deadline)
         st.sidebar.success(f"Día límite actualizado a WD{new_deadline}")
 
-    # Botón para reiniciar todos los estados del mes
+    # Reiniciar estados
     if st.sidebar.button("♻️ Resetear estados del mes"):
         docs = list(db.collection("reconciliation_records").stream())
         total = len(docs)
         progress = st.sidebar.progress(0, text="Reiniciando estados...")
-
         for i, doc in enumerate(docs):
             doc.reference.update({
                 "Completed Mar": "No",
@@ -161,26 +172,22 @@ if user == "ADMIN":
                 "Deadline Used": firestore.DELETE_FIELD
             })
             progress.progress((i + 1) / total)
-
         progress.empty()
         st.sidebar.success("Todos los estados fueron reiniciados.")
 
-    # Botón para forzar evaluación de estatus "On time" / "Completed/Delayed"
+    # Forzar evaluación
     if st.sidebar.button("📌 Forzar evaluación de 'On time' / 'Delayed'"):
         wd = get_stored_deadline_day()
-        today = pd.Timestamp(datetime.now(pytz.timezone("America/Mexico_City")).date())
         deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(wd - 1)
-    
         docs = list(db.collection("reconciliation_records").stream())
         total = len(docs)
         progress = st.sidebar.progress(0, text="Evaluando estatus...")
-    
+
         for i, doc in enumerate(docs):
             data = doc.to_dict()
             completed = data.get("Completed Mar", "No").strip().upper()
             current_status = data.get("Status Mar", "Pending")
-    
-            # Caso 1: Completado -> se evalúa fecha
+
             if completed == "YES":
                 completed_date_str = data.get("Completed Timestamp")
                 if completed_date_str:
@@ -190,52 +197,47 @@ if user == "ADMIN":
                         "Status Mar": status,
                         "Deadline Used": deadline_date.strftime("%Y-%m-%d")
                     })
-    
-            # Caso 2: No completado y sigue como Pending -> marcar como Delayed si ya pasó WD
             elif completed == "NO" and current_status == "Pending" and today > deadline_date:
                 doc.reference.update({
                     "Status Mar": "Delayed",
                     "Deadline Used": deadline_date.strftime("%Y-%m-%d")
                 })
-    
+
             progress.progress((i + 1) / total)
-    
+
         progress.empty()
         st.sidebar.success("Evaluación de estado completada.")
-
-
-
 # -------------------------------
 # KPI DASHBOARD
 # -------------------------------
 if modo == "📈 Dashboard KPI":
     st.title("📊 Dashboard KPI - Estado de Conciliaciones")
 
-    region_filter = st.sidebar.selectbox("🌎 Región", ["Todas"] + sorted(df["Region"].unique()))
     filtered_df = df.copy()
 
+    # Filtros
+    region_filter = st.sidebar.selectbox("🌎 Región", ["Todas"] + sorted(filtered_df["Region"].dropna().unique()))
     if region_filter != "Todas":
         filtered_df = filtered_df[filtered_df["Region"] == region_filter]
 
-    available_countries = sorted(filtered_df["Country"].dropna().unique())
-    selected_countries = st.sidebar.multiselect("🌍 País", available_countries, default=available_countries)
+    country_filter = sorted(filtered_df["Country"].dropna().unique())
+    selected_countries = st.sidebar.multiselect("🌍 País", country_filter, default=country_filter)
     filtered_df = filtered_df[filtered_df["Country"].isin(selected_countries)]
 
-    available_companies = sorted(filtered_df["HFM CODE Entity"].dropna().unique())
-    selected_companies = st.sidebar.multiselect("🏢 Company Code", available_companies, default=available_companies)
+    company_filter = sorted(filtered_df["HFM CODE Entity"].dropna().unique())
+    selected_companies = st.sidebar.multiselect("🏢 Company Code", company_filter, default=company_filter)
     filtered_df = filtered_df[filtered_df["HFM CODE Entity"].isin(selected_companies)]
+
+    stream_filter = sorted(filtered_df["Preparer Stream"].dropna().unique())
+    selected_streams = st.sidebar.multiselect("🧩 Preparer Stream", stream_filter, default=stream_filter)
+    filtered_df = filtered_df[filtered_df["Preparer Stream"].isin(selected_streams)]
 
     reviewer_options = sorted(filtered_df["ReviewGroup"].dropna().unique())
     reviewer_group = st.sidebar.selectbox("👥 Reviewer Group", ["Todos"] + reviewer_options)
     if reviewer_group != "Todos":
         filtered_df = filtered_df[filtered_df["ReviewGroup"] == reviewer_group]
 
-    # Nuevo filtro: Preparer Stream
-    unique_streams = sorted(filtered_df["Preparer Stream"].dropna().unique())
-    selected_streams = st.sidebar.multiselect("🔁 Preparer Stream", unique_streams, default=unique_streams)
-    filtered_df = filtered_df[filtered_df["Preparer Stream"].isin(selected_streams)]
-
-    # KPI visual si hay cuentas en revisión
+    # KPI visual de revisión requerida
     review_count = filtered_df[filtered_df["Status Mar"] == "Review Required"].shape[0]
     if review_count > 0:
         st.markdown(f"""
@@ -265,17 +267,16 @@ if modo == "📈 Dashboard KPI":
         if not pie_data.empty:
             pie_counts = pie_data["Status Simplified"].value_counts().reset_index()
             pie_counts.columns = ["Status", "Count"]
-
             pie_fig = px.pie(
                 pie_counts,
                 names="Status",
                 values="Count",
                 title="Estado General",
-                hover_data=["Count"],
                 color="Status",
+                hover_data=["Count"],
                 color_discrete_map={
                     "Completed": "green",
-                    "Pending": "lightgray",
+                    "Pending": "gray",
                     "Review Required": "gold"
                 }
             )
@@ -288,12 +289,11 @@ if modo == "📈 Dashboard KPI":
             st.info("No hay datos suficientes para la gráfica de pastel.")
 
     with col2:
-        st.subheader("⏱️ Desempeño por Status (completados y revisión)")
+        st.subheader("⏱️ Desempeño por Status")
         bar_data = filtered_df[filtered_df["Status Mar"].isin(["On time", "Delayed", "Completed/Delayed", "Review Required"])]
         if not bar_data.empty:
             bar_counts = bar_data["Status Mar"].value_counts().reset_index()
             bar_counts.columns = ["Status", "Count"]
-
             bar_fig = px.bar(
                 bar_counts, x="Status", y="Count",
                 title="⏱️ Desempeño por Status",
@@ -305,12 +305,11 @@ if modo == "📈 Dashboard KPI":
                     "Review Required": "gold"
                 }
             )
-
             st.plotly_chart(bar_fig, use_container_width=True)
         else:
             st.info("No hay datos suficientes para la gráfica de barras.")
 
-    # Drilldown expandible
+    # Drilldown: Ver cuentas pendientes de revisión
     review_pending_df = filtered_df[filtered_df["Status Mar"] == "Review Required"]
     if not review_pending_df.empty:
         with st.expander("🔍 Ver cuentas pendientes de revisión"):
@@ -327,13 +326,9 @@ if modo == "📈 Dashboard KPI":
 # VISOR GL
 # -------------------------------
 if modo == "📋 Visor GL":
-    user_info = USER_ACCESS.get(user, {})
-    allowed_countries = user_info.get("countries", [])
-    allowed_streams = user_info.get("streams", [])
-
+    # Filtros por país y stream
     if allowed_countries != "ALL":
         df = df[df["Country"].isin(allowed_countries)]
-
     if allowed_streams != "ALL":
         df = df[df["Preparer Stream"].isin(allowed_streams)]
 
@@ -356,36 +351,26 @@ if modo == "📋 Visor GL":
     paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
     selected_index = st.session_state.get("selected_index", None)
 
-    # Filtros en sidebar
+    # Filtros dinámicos
     with st.sidebar:
         st.markdown("### 🔎 Filtros")
-        unique_countries = sorted(df["Country"].dropna().unique())
-        selected_countries = st.multiselect("🌍 País", unique_countries, default=unique_countries)
-
-        unique_entities = sorted(df["HFM CODE Entity"].dropna().unique())
-        selected_entities = st.multiselect("🏢 Entity", unique_entities, default=unique_entities)
-
-        unique_status = sorted(df["Status Mar"].dropna().unique())
-        selected_status = st.multiselect("📌 Status", unique_status, default=unique_status)
-
-        unique_streams = sorted(df["Preparer Stream"].dropna().unique())
-        selected_streams = st.multiselect("🔁 Preparer Stream", unique_streams, default=unique_streams)
-
-        df = df[
-            df["Country"].isin(selected_countries) &
-            df["HFM CODE Entity"].isin(selected_entities) &
-            df["Status Mar"].isin(selected_status) &
-            df["Preparer Stream"].isin(selected_streams)
-        ]
+        st.multiselect("🌍 País", sorted(df["Country"].dropna().unique()), default=None)
+        st.multiselect("🏢 Company", sorted(df["HFM CODE Entity"].dropna().unique()), default=None)
+        st.multiselect("📌 Status", sorted(df["Status Mar"].dropna().unique()), default=None)
+        st.multiselect("🧩 Preparer Stream", sorted(df["Preparer Stream"].dropna().unique()), default=None)
 
     def status_color(status):
         return {
-            'On time': '🟢',
-            'Delayed': '🔴',
-            'Pending': '⚪️',
-            'Completed/Delayed': '🔴🟢',
-            'Review Required': '🟡'
-        }.get(status, '⚪️')
+            "On time": "🟢",
+            "Completed/Delayed": "🟢",
+            "Delayed": "🔴",
+            "Pending": "⚪️",
+            "Review Required": "🟡",
+            "SUBMITTED": "🔵",
+            "ON HOLD": "🟠",
+            "REVIEWED": "🟣",
+            "APPROVED": "✅"
+        }.get(status, "⚪️")
 
     cols = st.columns([3, 9])
     with cols[0]:
@@ -395,8 +380,6 @@ if modo == "📋 Visor GL":
             status = row.get("Status Mar", "Pending")
             color = status_color(status)
             gl_name = str(row.get("GL NAME", "Sin nombre"))
-            if gl_name is None or gl_name == "Ellipsis" or gl_name == str(...):
-                gl_name = "Sin nombre"
             label = f"{color} {gl_account} - {gl_name}"
             if st.button(label, key=f"btn_{i}"):
                 st.session_state.selected_index = i
@@ -407,111 +390,97 @@ if modo == "📋 Visor GL":
             row = paginated_df.iloc[selected_index]
             doc_id = row["_id"]
             gl_account = str(row.get("GL Account", "")).zfill(10)
-
             st.markdown(f"### Detalles de GL {gl_account}")
-            st.markdown(f"**GL NAME:** {row.get('GL NAME')}")
-            st.markdown(f"**Balance:** {row.get('Balance  in EUR at 31/3', 'N/A')}")
-            st.markdown(f"**País:** {row.get('Country', 'N/A')}")
-            st.markdown(f"**Entity:** {row.get('HFM CODE Entity', 'N/A')}")
-            st.markdown(f"**Review Group:** {row.get('ReviewGroup', 'Others')}")
 
             live_doc_ref = db.collection("reconciliation_records").document(doc_id)
             live_doc = live_doc_ref.get().to_dict()
 
+            # Mostrar estado actual
+            current_status = live_doc.get("Status Mar", "Pending")
             completed_val = live_doc.get("Completed Mar", "No")
             completed_checked = completed_val.strip().upper() == "YES"
-            new_check = st.checkbox("✅ Completed", value=completed_checked, key=f"completed_{doc_id}")
+            st.markdown(f"**status:** {current_status}")
 
+            # Checkbox plan de acción
+            action_required = live_doc.get("Action Plan", "No") == "Yes"
+            if st.checkbox("🛠️ Plan de Acción requerido", value=action_required, key=f"action_{doc_id}"):
+                live_doc_ref.update({"Action Plan": "Yes"})
+            else:
+                live_doc_ref.update({"Action Plan": "No"})
+
+            # Estado Completed
+            new_check = st.checkbox("✅ Completed", value=completed_checked, key=f"completed_{doc_id}")
             if new_check != completed_checked:
-                new_status = "Yes" if new_check else "No"
                 now = datetime.now(pytz.timezone("America/Mexico_City"))
                 timestamp_str = now.strftime("%Y-%m-%d %H:%M:%S")
                 today = pd.Timestamp(now.date())
-                deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(get_stored_deadline_day() - 1)
-
-                if new_check:
-                    status_result = "On time" if today <= deadline_date else "Completed/Delayed"
-                else:
-                    status_result = "Pending" if today <= deadline_date else "Delayed"
-
+                wd = get_stored_deadline_day()
+                deadline = pd.Timestamp(today.replace(day=1)) + BDay(wd - 1)
+                status_result = "On time" if today <= deadline else "Completed/Delayed"
                 live_doc_ref.update({
-                    "Completed Mar": new_status,
-                    "Completed Timestamp": timestamp_str,
-                    "Status Mar": status_result,
-                    "Deadline Used": deadline_date.strftime("%Y-%m-%d")
+                    "Completed Mar": "Yes" if new_check else "No",
+                    "Completed Timestamp": timestamp_str if new_check else firestore.DELETE_FIELD,
+                    "Status Mar": status_result if new_check else "Pending",
+                    "Deadline Used": deadline.strftime("%Y-%m-%d")
                 })
+                st.success(f"✔️ Estado actualizado: {status_result}")
 
-                st.success(f"✔️ Estado actualizado: {new_status} | {status_result}")
-                st.session_state["refresh_timestamp"] = datetime.now().timestamp()
-
-            current_status = live_doc.get("Status Mar", "Pending")
-            st.markdown(f"**status:** {current_status}")
-
-            # Botón de revisión
+            # Review Required
             review_required = current_status == "Review Required"
-            new_review = st.checkbox("⚠️ Review Required", value=review_required, key=f"review_required_{doc_id}")
-
+            new_review = st.checkbox("⚠️ Review Required", value=review_required, key=f"review_{doc_id}")
             if new_review != review_required:
-                new_status = "Review Required" if new_review else "Pending"
-                update_fields = {"Status Mar": new_status}
-                if new_review:
-                    update_fields["Completed Mar"] = "No"
-                live_doc_ref.update(update_fields)
-                st.success(f"✔️ Estado actualizado a: {new_status}")
-                st.session_state["refresh_timestamp"] = datetime.now().timestamp()
+                live_doc_ref.update({
+                    "Status Mar": "Review Required" if new_review else "Pending",
+                    "Completed Mar": "No"
+                })
+                st.success("✔️ Estado actualizado")
+
+            # Estados adicionales protegidos por contraseña
+            if user_role in ["REVIEWER", "APPROVER"]:
+                with st.expander("🔒 Cambiar estado avanzado"):
+                    pwd = st.text_input("🔑 Contraseña", type="password", key=f"pwd_{doc_id}")
+                    new_status = st.selectbox("Nuevo estado", ["ON HOLD", "REVIEWED", "APPROVED"], key=f"combo_{doc_id}")
+                    if st.button("Aplicar", key=f"apply_{doc_id}"):
+                        if pwd == st.secrets.get("role_passwords", {}).get(user_role.lower(), ""):
+                            update_fields = {"Status Mar": new_status}
+                            if new_status == "APPROVED":
+                                now = datetime.now(pytz.timezone("America/Mexico_City"))
+                                update_fields.update({
+                                    "Completed Mar": "Yes",
+                                    "Completed Timestamp": now.strftime("%Y-%m-%d %H:%M:%S")
+                                })
+                            live_doc_ref.update(update_fields)
+                            st.success(f"✅ Estado actualizado a: {new_status}")
+                        else:
+                            st.error("Contraseña incorrecta.")
 
             # Comentarios
-            comment_history = live_doc.get("comment", "") or ""
-            if isinstance(comment_history, str) and comment_history.strip():
-                for line in comment_history.strip().split("\n"):
-                    st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
-
-            # Archivos cargados
-            st.markdown("---")
-            st.markdown("### 📁 Historial de cargas de esta cuenta")
-            log_docs = db.collection("upload_logs").where(
-                filter=FieldFilter("gl_account", "==", gl_account)
-            ).stream()
-            log_data = sorted(
-                [doc.to_dict() for doc in log_docs],
-                key=lambda x: x.get("uploaded_at", ""),
-                reverse=True
-            )
-            if log_data:
-                st.markdown(f"🔁 **Reintentos:** {len(log_data)}")
-                for log in log_data:
-                    st.markdown(f"- 📎 **{log['file_name']}** | 👤 {log['user']} | 🕒 {log['uploaded_at']} | [🔽 Descargar]({log.get('file_url', '#')})")
-            else:
-                st.info("No hay archivos cargados para esta cuenta.")
-
-            # Comentarios nuevos
-            new_comment = st.text_area("Nuevo comentario", key=f"comment_input_{doc_id}")
-            if st.button("💾 Guardar comentario", key=f"save_{doc_id}"):
+            st.markdown("### 💬 Comentarios")
+            comments = live_doc.get("comment", "") or ""
+            for line in comments.strip().split("\n"):
+                st.markdown(f"<div style='background-color:#f1f1f1;padding:8px;border-radius:8px;margin-bottom:6px'>💬 {line}</div>", unsafe_allow_html=True)
+            new_comment = st.text_area("Nuevo comentario", key=f"comment_{doc_id}")
+            if st.button("💾 Guardar comentario", key=f"save_comment_{doc_id}"):
                 now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
                 entry = f"{user} ({now}): {new_comment}"
                 save_comment(doc_id, entry)
                 st.success("Comentario guardado")
-                st.session_state["refresh_timestamp"] = datetime.now().timestamp()
 
-            # Subir archivos
-            uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{doc_id}")
-            if uploaded_file:
-                if st.button("✅ Confirmar carga de archivo", key=f"confirm_upload_{doc_id}"):
-                    file_url = upload_file_to_bucket(gl_account, uploaded_file)
-                    db.collection("reconciliation_records").document(doc_id).update({"file_url": file_url})
-                    now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
-                    log_upload({
-                        "file_name": uploaded_file.name,
-                        "uploaded_at": now,
-                        "user": user,
-                        "gl_account": gl_account,
-                        "file_url": file_url
-                    })
-                    st.success("Archivo cargado correctamente")
-                    st.session_state["refresh_timestamp"] = datetime.now().timestamp()
+            # Archivos
+            uploaded_file = st.file_uploader("📎 Subir archivo", key=f"upload_{doc_id}")
+            if uploaded_file and st.button("✅ Subir archivo", key=f"confirm_upload_{doc_id}"):
+                file_url = upload_file_to_bucket(gl_account, uploaded_file)
+                live_doc_ref.update({"file_url": file_url})
+                log_upload({
+                    "file_name": uploaded_file.name,
+                    "uploaded_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "user": user,
+                    "gl_account": gl_account,
+                    "file_url": file_url
+                })
+                st.success("Archivo cargado correctamente")
 
+            # Mostrar archivo
             file_url = row.get("file_url")
             if file_url:
-                st.markdown(f"📄 Archivo cargado previamente: [Ver archivo]({file_url})")
-        else:
-            st.markdown("<br><br><h4>Selecciona un GL para ver sus detalles</h4>", unsafe_allow_html=True)
+                st.markdown(f"📄 Archivo: [Ver archivo]({file_url})")
