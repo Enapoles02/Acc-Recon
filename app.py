@@ -397,23 +397,23 @@ if modo == "📋 Visor GL":
 
     # ✅ Mostrar tarjetas de GL
     def status_color(status):
-        if "APPROVED/On time" in status:
+        status = str(status).strip().upper()  # Normaliza para evitar errores de formato
+        if "APPROVED/ON TIME" in status:
             return '🟢✔️'
-        elif "APPROVED/Delayed" in status:
+        elif "APPROVED/DELAYED" in status:
             return '🟢🔴'
         else:
             color_map = {
-                'On time': '🟢',
-                'Delayed': '🔴',
-                'Pending': '⚪️',
-                'Review Required': '🟡',
+                'ON TIME': '🟢',
+                'DELAYED': '🔴',
+                'PENDING': '⚪️',
+                'REVIEW REQUIRED': '🟡',
                 'SUBMITTED': '🔵',
                 'ON HOLD': '🟠',
                 'REVIEWED': '🟣',
                 'APPROVED': '🟢✔️'
             }
             return color_map.get(status, '⚪️')
-    cols = st.columns([3, 9])
     with cols[0]:
         st.markdown("### 🧾 GL Accounts")
         for i, row in paginated_df.iterrows():
