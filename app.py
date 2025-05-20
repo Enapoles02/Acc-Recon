@@ -414,7 +414,7 @@ if modo == "📋 Visor GL":
                 'APPROVED': '🟢✔️'
             }
             return color_map.get(status, '⚪️')
-    cols = st.columns([3, 9])
+        cols = st.columns([3, 9])
     with cols[0]:
         st.markdown("### 🧾 GL Accounts")
         for i, row in paginated_df.iterrows():
