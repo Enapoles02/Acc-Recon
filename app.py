@@ -98,6 +98,20 @@ def log_upload(metadata):
 df = load_data()
 mapping_df = load_mapping()
 
+# 🔁 Función para mapear usuario según país y preparer stream
+def map_user_from_access(row):
+    for username, access in USER_ACCESS.items():
+        user_countries = access["countries"]
+        user_streams = access["streams"]
+
+        if user_countries != "ALL" and row["Country"] not in user_countries:
+            continue
+        if user_streams != "ALL" and row["Preparer Stream"] not in user_streams:
+            continue
+        return username
+    return "Desconocido"
+
+
 if "GL Account" in df.columns and "GL Account" in mapping_df.columns:
     df["GL Account"] = df["GL Account"].astype(str).str.zfill(10).str.strip()
     mapping_df["GL Account"] = mapping_df["GL Account"].astype(str).str.zfill(10).str.strip()
