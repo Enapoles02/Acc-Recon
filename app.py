@@ -344,16 +344,27 @@ if modo == "📈 Dashboard KPI":
         # ✅ Mapea el usuario con base en país y stream
         df_wd["Usuario Asignado"] = df_wd.apply(map_user_from_access, axis=1)
         
-        # Debug temporal
-        st.write("Usuarios asignados:", df_wd["Usuario Asignado"].unique())
-        
         # 🔴 Limpieza y exclusión de approvers
         df_wd["Usuario Asignado"] = df_wd["Usuario Asignado"].str.strip()
-        # Excluir usuarios con rol APPROVER o ADMIN
         usuarios_excluidos = ["Guillermo Mayoral", "Guillermo Guarneros", "ADMIN"]
         df_wd = df_wd[~df_wd["Usuario Asignado"].isin(usuarios_excluidos)]
-       
-        resumen = df_wd.groupby(["Usuario Asignado", "WD"]).size().unstack(fill_value=0)
+        
+        # 🧪 Validación final (opcional, puedes borrar esta línea después de probar)
+        st.write("Usuarios asignados filtrados:", df_wd["Usuario Asignado"].unique())
+        
+        # ✅ Generar el resumen solo si hay datos
+        if not df_wd.empty:
+            resumen = df_wd.groupby(["Usuario Asignado", "WD"]).size().unstack(fill_value=0)
+            resumen = resumen.reindex(columns=[f"WD{i+1}" for i in range(len(workdays))], fill_value=0)
+        
+            selected_user = st.text_input("Buscar persona", "")
+            if selected_user:
+                resumen = resumen[resumen.index.str.contains(selected_user, case=False)]
+        
+            st.dataframe(resumen.style.highlight_max(axis=1), use_container_width=True)
+        else:
+            st.info("No hay datos disponibles para mostrar el desempeño por WD.")
+
 
 
 
