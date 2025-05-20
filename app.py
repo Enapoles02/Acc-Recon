@@ -349,7 +349,10 @@ if modo == "📈 Dashboard KPI":
         
         # 🔴 Limpieza y exclusión de approvers
         df_wd["Usuario Asignado"] = df_wd["Usuario Asignado"].str.strip()
-        df_wd = df_wd[~df_wd["Usuario Asignado"].isin(["Guillermo Mayoral", "Guillermo Guarneros"])]
+        # Excluir usuarios con rol APPROVER o ADMIN
+        usuarios_excluidos = ["Guillermo Mayoral", "Guillermo Guarneros", "ADMIN"]
+        df_wd = df_wd[~df_wd["Usuario Asignado"].isin(usuarios_excluidos)]
+
         
         resumen = df_wd.groupby(["Usuario Asignado", "WD"]).size().unstack(fill_value=0)
 
