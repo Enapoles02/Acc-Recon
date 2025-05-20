@@ -455,7 +455,7 @@ if modo == "📋 Visor GL":
 
                 if st.button("✅ Actualizar estatus", key=f"update_status_{doc_id}") and allowed:
                     if selected_status in ["ON HOLD", "REVIEWED", "APPROVED"]:
-                        if password_input != st.secrets.get("reviewer_password", "12345"):
+                        if password_input != st.secrets["role_passwords"]["reviewer_password"]:
                             st.error("❌ Contraseña incorrecta.")
                         else:
                             update_fields = {"Status Mar": selected_status}
