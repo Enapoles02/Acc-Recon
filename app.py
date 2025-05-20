@@ -344,10 +344,15 @@ if modo == "📈 Dashboard KPI":
         # ✅ Mapea el usuario con base en país y stream
         df_wd["Usuario Asignado"] = df_wd.apply(map_user_from_access, axis=1)
         
-        # 🔴 Excluir aprobadores del cuadro
+        # Debug temporal
+        st.write("Usuarios asignados:", df_wd["Usuario Asignado"].unique())
+        
+        # 🔴 Limpieza y exclusión de approvers
+        df_wd["Usuario Asignado"] = df_wd["Usuario Asignado"].str.strip()
         df_wd = df_wd[~df_wd["Usuario Asignado"].isin(["Guillermo Mayoral", "Guillermo Guarneros"])]
         
         resumen = df_wd.groupby(["Usuario Asignado", "WD"]).size().unstack(fill_value=0)
+
 
 
 
