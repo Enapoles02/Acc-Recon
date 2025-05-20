@@ -355,6 +355,16 @@ if modo == "📋 Visor GL":
     current_page = st.session_state.current_page
     start_idx = (current_page - 1) * records_per_page
     end_idx = start_idx + records_per_page
+   # Buscador de GL Account
+search_gl = st.text_input("🔍 Buscar GL Account (número):").strip()
+
+# Filtrar por GL si se ingresó algo
+if search_gl:
+    filtered_gl_df = df[df["GL Account"].str.contains(search_gl.zfill(10), na=False)]
+    paginated_df = filtered_gl_df.reset_index(drop=True)
+    max_pages = 1  # Desactiva paginación en búsqueda
+    st.session_state.current_page = 1
+else:
     paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
     selected_index = st.session_state.get("selected_index", None)
 
