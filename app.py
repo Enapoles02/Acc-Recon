@@ -121,10 +121,18 @@ if df.empty:
 now = datetime.now(pytz.timezone("America/Mexico_City"))
 today = pd.Timestamp(now.date())
 
+import calendar
+
 def get_workdays(year, month):
+    # Último día del mes
+    last_day = calendar.monthrange(year, month)[1]
     first_day = pd.Timestamp(f"{year}-{month:02d}-01")
-    workdays = pd.date_range(first_day, first_day + BDay(10), freq=BDay())
+    last_day_date = pd.Timestamp(f"{year}-{month:02d}-{last_day}")
+    
+    # Todos los días hábiles entre el 1 y el último del mes
+    workdays = pd.date_range(first_day, last_day_date, freq=BDay())
     return workdays
+
 
 workdays = get_workdays(today.year, today.month)
 day_is_wd1 = today == workdays[0]
