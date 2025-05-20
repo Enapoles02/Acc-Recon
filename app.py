@@ -17,25 +17,25 @@ user_role = st.sidebar.selectbox("Rol", ["FILLER", "REVIEWER", "APPROVER"])
 
 # Mapeo de acceso combinado
 USER_ACCESS = {
-    "Paula Sarachaga": {"countries": ["Argentina", "Chile", "Guatemala"], "streams": "ALL"},
-    "Napoles Enrique": {"countries": ["Canada"], "streams": ["GL"]},
-    "Julio": {"countries": ["United States of America"], "streams": "ALL"},
-    "Guadalupe": {"countries": ["Mexico", "Peru", "Panama"], "streams": "ALL"},
-    "Gabriel Aviles": {"countries": ["Canada", "United States of America"], "streams": ["RTR-FA"]},
-    "Delhumeau Luis": {"countries": ["Canada"], "streams": ["RTR-ICO"]},
-    "Guillermo Mayoral": {"countries": "ALL", "streams": "ALL"},
-    "Guillermo Guarneros": {"countries": "ALL", "streams": "ALL"},
-    "Miriam Sanchez": {"countries": ["Canada"], "streams": ["GL"]},
-    "ADMIN": {"countries": "ALL", "streams": "ALL"},
+    "Paula Sarachaga": {"countries": ["Argentina", "Chile", "Guatemala"], "streams": "ALL", "role": "FILLER"},
+    "Napoles Enrique": {"countries": ["Canada"], "streams": ["GL"], "role": "FILLER"},
+    "Julio": {"countries": ["United States of America"], "streams": "ALL", "role": "FILLER"},
+    "Guadalupe": {"countries": ["Mexico", "Peru", "Panama"], "streams": "ALL", "role": "FILLER"},
+    "Gabriel Aviles": {"countries": ["Canada", "United States of America"], "streams": ["RTR-FA"], "role": "REVIEWER"},
+    "Delhumeau Luis": {"countries": ["Canada"], "streams": ["RTR-ICO"], "role": "REVIEWER"},
+    "Guillermo Mayoral": {"countries": "ALL", "streams": "ALL", "role": "APPROVER"},
+    "Guillermo Guarneros": {"countries": "ALL", "streams": "ALL", "role": "APPROVER"},
+    "ADMIN": {"countries": "ALL", "streams": "ALL", "role": "ADMIN"}
 }
 
 if not user:
     st.warning("Ingresa tu nombre de usuario para continuar.")
     st.stop()
 
-user_info = USER_ACCESS.get(user, {"countries": [], "streams": []})
+user_info = USER_ACCESS.get(user, {"countries": [], "streams": [], "role": "FILLER"})
 allowed_countries = user_info.get("countries", [])
 allowed_streams = user_info.get("streams", [])
+role = user_info.get("role", "FILLER")
 
 @st.cache_resource
 def init_firebase():
@@ -312,6 +312,27 @@ if modo == "📈 Dashboard KPI":
                 use_container_width=True
             )
 
+    # Cuadro resumen por persona y WD solo para ADMIN
+    if role == "ADMIN":
+        st.markdown("### 📅 Desempeño diario por WD")
+    
+        # Extraer fecha de completado y nombre
+        df_wd = df[df["Completed Mar"].str.upper() == "YES"].copy()
+        df_wd["Fecha"] = pd.to_datetime(df_wd["Completed Timestamp"], errors="coerce")
+        df_wd["WD"] = df_wd["Fecha"].apply(lambda x: f"WD{sum((x >= d for d in workdays))}" if pd.notnull(x) else "N/A")
+    
+        resumen = df_wd.groupby(["User", "WD"]).size().unstack(fill_value=0)
+        resumen = resumen.reindex(columns=[f"WD{i+1}" for i in range(len(workdays))], fill_value=0)
+        selected_user = st.text_input("Buscar persona", "")
+        if selected_user:
+            resumen = resumen[resumen.index.str.contains(selected_user, case=False)]
+    
+        st.dataframe(resumen.style.highlight_max(axis=1), use_container_width=True)
+
+
+
+
+    
     st.markdown("🔍 Este dashboard refleja el estado de conciliaciones según los filtros aplicados.")
 # -------------------------------
 # VISOR GL
