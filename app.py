@@ -340,24 +340,8 @@ if modo == "📈 Dashboard KPI":
 # -------------------------------
 if modo == "📋 Visor GL":
     records_per_page = 5
-    max_pages = (len(df) - 1) // records_per_page + 1
     if "current_page" not in st.session_state:
         st.session_state.current_page = 1
-
-    col1, col2 = st.columns([1, 8])
-    with col1:
-        if st.button("⬅️") and st.session_state.current_page > 1:
-            st.session_state.current_page -= 1
-    with col2:
-        if st.button("➡️") and st.session_state.current_page < max_pages:
-            st.session_state.current_page += 1
-
-    current_page = st.session_state.current_page
-    start_idx = (current_page - 1) * records_per_page
-    end_idx = start_idx + records_per_page
-
-    # ✅ Buscador de GL Account
-    search_gl = st.text_input("🔍 Buscar GL Account (número):").strip()
 
     # ✅ Filtros por país, entidad, status y preparer stream
     with st.sidebar:
@@ -374,7 +358,7 @@ if modo == "📋 Visor GL":
         unique_streams = sorted(df["Preparer Stream"].dropna().unique())
         selected_streams = st.multiselect("🔧 Preparer Stream", unique_streams, default=unique_streams)
 
-    # ✅ Aplicar los filtros
+    # ✅ Aplicar filtros
     df = df[
         df["Country"].isin(selected_countries)
         & df["HFM CODE Entity"].isin(selected_entities)
@@ -382,26 +366,36 @@ if modo == "📋 Visor GL":
         & df["Preparer Stream"].isin(selected_streams)
     ]
 
-    # ✅ Aplicar búsqueda si hay input
-   if search_gl:
-    filtered_gl_df = df[df["GL Account"].str.contains(search_gl.zfill(10), na=False)]
-    paginated_df = filtered_gl_df.reset_index(drop=True)
-    max_pages = 1
-    st.session_state.current_page = 1
-    selected_index = st.session_state.get("selected_index", None)  # ✅ Añadido aquí
-else:
-    paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
+    # ✅ Buscador de GL Account
+    search_gl = st.text_input("🔍 Buscar GL Account (número):").strip()
+
+    # ✅ Paginación
+    current_page = st.session_state.current_page
+    start_idx = (current_page - 1) * records_per_page
+    end_idx = start_idx + records_per_page
+
+    if search_gl:
+        filtered_gl_df = df[df["GL Account"].str.contains(search_gl.zfill(10), na=False)]
+        paginated_df = filtered_gl_df.reset_index(drop=True)
+        max_pages = 1
+        st.session_state.current_page = 1
+    else:
+        paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
+        total_records = len(df)
+        max_pages = (total_records - 1) // records_per_page + 1
+
     selected_index = st.session_state.get("selected_index", None)
 
-       
+    # ✅ Controles de navegación
+    col1, col2 = st.columns([1, 8])
+    with col1:
+        if st.button("⬅️") and st.session_state.current_page > 1:
+            st.session_state.current_page -= 1
+    with col2:
+        if st.button("➡️") and st.session_state.current_page < max_pages:
+            st.session_state.current_page += 1
 
-    # ✅ Aplicar los filtros al dataframe
-    df = df[
-        df["Country"].isin(selected_countries)
-        & df["HFM CODE Entity"].isin(selected_entities)
-        & df["Status Mar"].isin(selected_status)
-        & df["Preparer Stream"].isin(selected_streams)
-    ]
+    # ✅ Mostrar tarjetas de GL
     def status_color(status):
         color_map = {
             'On time': '🟢',
@@ -415,7 +409,6 @@ else:
             'APPROVED': '🟢✔️'
         }
         return color_map.get(status, '⚪️')
-
     cols = st.columns([3, 9])
     with cols[0]:
         st.markdown("### 🧾 GL Accounts")
