@@ -19,10 +19,11 @@ user_role = st.sidebar.selectbox("Rol", ["FILLER", "REVIEWER", "APPROVER"])
 USER_ACCESS = {
     "Paula Sarachaga": {"countries": ["Argentina", "Chile", "Guatemala"], "streams": "ALL", "role": "FILLER"},
     "Napoles Enrique": {"countries": ["Canada"], "streams": ["GL"], "role": "FILLER"},
+    "MSANCHEZ": {"countries": ["Canada","United States of America"], "streams": ["GL"], "role": "REVIEWER"},
     "Julio": {"countries": ["United States of America"], "streams": "ALL", "role": "FILLER"},
     "Guadalupe": {"countries": ["Mexico", "Peru", "Panama"], "streams": "ALL", "role": "FILLER"},
     "Gabriel Aviles": {"countries": ["Canada", "United States of America"], "streams": ["RTR-FA"], "role": "REVIEWER"},
-    "Delhumeau Luis": {"countries": ["Canada"], "streams": ["RTR-ICO"], "role": "REVIEWER"},
+    "Delhumeau Luis": {"countries": ["Canada"], "streams": ["RTR-ICO"], "role": "FILLER"},
     "Guillermo Mayoral": {"countries": "ALL", "streams": "ALL", "role": "APPROVER"},
     "Guillermo Guarneros": {"countries": "ALL", "streams": "ALL", "role": "APPROVER"},
     "ADMIN": {"countries": "ALL", "streams": "ALL", "role": "ADMIN"}
