@@ -408,6 +408,7 @@ if modo == "📋 Visor GL":
         & df["HFM CODE Entity"].isin(selected_entities)
         & df["Status Mar"].isin(selected_status)
         & df["Preparer Stream"].isin(selected_streams)
+        & df["Usuario Asignado"].isin(selected_users)
     ]
 
     # ✅ Buscador de GL Account
