@@ -402,7 +402,7 @@ if modo == "📋 Visor GL":
     if "current_page" not in st.session_state:
         st.session_state.current_page = 1
 
-    # ✅ Filtros por país, entidad, status y preparer stream
+        # ✅ Filtros por país, entidad, status, preparer stream y usuario asignado
     with st.sidebar:
         st.markdown("### 🔎 Filtros")
         unique_countries = sorted(df["Country"].dropna().unique())
@@ -417,7 +417,14 @@ if modo == "📋 Visor GL":
         unique_streams = sorted(df["Preparer Stream"].dropna().unique())
         selected_streams = st.multiselect("🔧 Preparer Stream", unique_streams, default=unique_streams)
 
-    # ✅ Aplicar filtros
+        # ✅ Nuevo filtro por usuario asignado
+        if "Usuario Asignado" in df.columns:
+            unique_users = sorted(df["Usuario Asignado"].dropna().unique())
+            selected_users = st.multiselect("👤 Usuario Asignado", unique_users, default=unique_users)
+        else:
+            selected_users = []
+
+       # ✅ Aplicar filtros
     df = df[
         df["Country"].isin(selected_countries)
         & df["HFM CODE Entity"].isin(selected_entities)
