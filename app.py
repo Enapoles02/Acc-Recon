@@ -212,8 +212,10 @@ def map_user_from_access(row):
 
         if user_countries != "ALL" and row["Country"] not in user_countries:
             continue
+
         if user_streams != "ALL" and row["Preparer Stream"] not in user_streams:
             continue
+
         return username
     return "Desconocido"
 
@@ -342,14 +344,11 @@ if modo == "📈 Dashboard KPI":
         # ✅ Mapea el usuario con base en país y stream
         df_wd["Usuario Asignado"] = df_wd.apply(map_user_from_access, axis=1)
         
+        # 🔴 Excluir aprobadores del cuadro
+        df_wd = df_wd[~df_wd["Usuario Asignado"].isin(["Guillermo Mayoral", "Guillermo Guarneros"])]
+        
         resumen = df_wd.groupby(["Usuario Asignado", "WD"]).size().unstack(fill_value=0)
 
-        resumen = resumen.reindex(columns=[f"WD{i+1}" for i in range(len(workdays))], fill_value=0)
-        selected_user = st.text_input("Buscar persona", "")
-        if selected_user:
-            resumen = resumen[resumen.index.str.contains(selected_user, case=False)]
-    
-        st.dataframe(resumen.style.highlight_max(axis=1), use_container_width=True)
 
 
 
