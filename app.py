@@ -349,9 +349,7 @@ if modo == "📈 Dashboard KPI":
         usuarios_excluidos = ["Guillermo Mayoral", "Guillermo Guarneros", "ADMIN"]
         df_wd = df_wd[~df_wd["Usuario Asignado"].isin(usuarios_excluidos)]
         
-        # 🧪 Validación final (opcional, puedes borrar esta línea después de probar)
-        st.write("Usuarios asignados filtrados:", df_wd["Usuario Asignado"].unique())
-        
+               
         # ✅ Generar el resumen solo si hay datos
         if not df_wd.empty:
             resumen = df_wd.groupby(["Usuario Asignado", "WD"]).size().unstack(fill_value=0)
