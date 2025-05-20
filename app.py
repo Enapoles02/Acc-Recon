@@ -201,6 +201,23 @@ if user == "ADMIN":
 
         progress.empty()
         st.sidebar.success("Evaluación de estado completada.")
+
+def map_user_from_access(row):
+    for username, access in USER_ACCESS.items():
+        user_countries = access["countries"]
+        user_streams = access["streams"]
+
+        # Verifica si el país coincide
+        if user_countries != "ALL" and row["Country"] not in user_countries:
+            continue
+
+        # Verifica si el preparer stream coincide
+        if user_streams != "ALL" and row["Preparer Stream"] not in user_streams:
+            continue
+
+        return username
+    return "Desconocido"
+
 # -------------------------------
 # KPI DASHBOARD
 # -------------------------------
