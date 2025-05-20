@@ -401,7 +401,7 @@ if modo == "📋 Visor GL":
             'On time': '🟢',
             'Delayed': '🔴',
             'Pending': '⚪️',
-            'APPROVED/Delayed': '🟢',
+            'APPROVED/Delayed': '🟢🔴',
             'Review Required': '🟡',
             'SUBMITTED': '🔵',
             'ON HOLD': '🟠',
