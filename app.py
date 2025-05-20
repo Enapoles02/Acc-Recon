@@ -383,14 +383,16 @@ if modo == "📋 Visor GL":
     ]
 
     # ✅ Aplicar búsqueda si hay input
-    if search_gl:
-        filtered_gl_df = df[df["GL Account"].str.contains(search_gl.zfill(10), na=False)]
-        paginated_df = filtered_gl_df.reset_index(drop=True)
-        max_pages = 1
-        st.session_state.current_page = 1
-    else:
-        paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
-        selected_index = st.session_state.get("selected_index", None)
+   if search_gl:
+    filtered_gl_df = df[df["GL Account"].str.contains(search_gl.zfill(10), na=False)]
+    paginated_df = filtered_gl_df.reset_index(drop=True)
+    max_pages = 1
+    st.session_state.current_page = 1
+    selected_index = st.session_state.get("selected_index", None)  # ✅ Añadido aquí
+else:
+    paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
+    selected_index = st.session_state.get("selected_index", None)
+
        
 
     # ✅ Aplicar los filtros al dataframe
