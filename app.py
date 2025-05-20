@@ -352,8 +352,7 @@ if modo == "📈 Dashboard KPI":
         # Excluir usuarios con rol APPROVER o ADMIN
         usuarios_excluidos = ["Guillermo Mayoral", "Guillermo Guarneros", "ADMIN"]
         df_wd = df_wd[~df_wd["Usuario Asignado"].isin(usuarios_excluidos)]
-
-        
+       
         resumen = df_wd.groupby(["Usuario Asignado", "WD"]).size().unstack(fill_value=0)
 
 
