@@ -355,20 +355,11 @@ if modo == "📋 Visor GL":
     current_page = st.session_state.current_page
     start_idx = (current_page - 1) * records_per_page
     end_idx = start_idx + records_per_page
-   # Buscador de GL Account
-search_gl = st.text_input("🔍 Buscar GL Account (número):").strip()
 
-# Filtrar por GL si se ingresó algo
-if search_gl:
-    filtered_gl_df = df[df["GL Account"].str.contains(search_gl.zfill(10), na=False)]
-    paginated_df = filtered_gl_df.reset_index(drop=True)
-    max_pages = 1  # Desactiva paginación en búsqueda
-    st.session_state.current_page = 1
-else:
-    paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
-    selected_index = st.session_state.get("selected_index", None)
+    # ✅ Buscador de GL Account
+    search_gl = st.text_input("🔍 Buscar GL Account (número):").strip()
 
-    # Filtros por país, entidad, status y preparer stream
+    # ✅ Filtros por país, entidad, status y preparer stream
     with st.sidebar:
         st.markdown("### 🔎 Filtros")
         unique_countries = sorted(df["Country"].dropna().unique())
@@ -383,13 +374,32 @@ else:
         unique_streams = sorted(df["Preparer Stream"].dropna().unique())
         selected_streams = st.multiselect("🔧 Preparer Stream", unique_streams, default=unique_streams)
 
-        df = df[
-            df["Country"].isin(selected_countries)
-            & df["HFM CODE Entity"].isin(selected_entities)
-            & df["Status Mar"].isin(selected_status)
-            & df["Preparer Stream"].isin(selected_streams)
-        ]
+    # ✅ Aplicar los filtros
+    df = df[
+        df["Country"].isin(selected_countries)
+        & df["HFM CODE Entity"].isin(selected_entities)
+        & df["Status Mar"].isin(selected_status)
+        & df["Preparer Stream"].isin(selected_streams)
+    ]
 
+    # ✅ Aplicar búsqueda si hay input
+    if search_gl:
+        filtered_gl_df = df[df["GL Account"].str.contains(search_gl.zfill(10), na=False)]
+        paginated_df = filtered_gl_df.reset_index(drop=True)
+        max_pages = 1
+        st.session_state.current_page = 1
+    else:
+        paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
+        selected_index = st.session_state.get("selected_index", None)
+       
+
+    # ✅ Aplicar los filtros al dataframe
+df = df[
+    df["Country"].isin(selected_countries)
+    & df["HFM CODE Entity"].isin(selected_entities)
+    & df["Status Mar"].isin(selected_status)
+    & df["Preparer Stream"].isin(selected_streams)
+]
     def status_color(status):
         color_map = {
             'On time': '🟢',
