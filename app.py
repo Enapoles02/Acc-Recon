@@ -419,7 +419,7 @@ with st.sidebar:
 
     # Preparer Stream dependiente del país
     unique_streams = sorted(df_filtered_by_country["Preparer Stream"].dropna().unique())
-   selected_streams = st.multiselect("🔧 Preparer Stream", unique_streams, default=unique_streams, key="filtro_stream")
+    selected_streams = st.multiselect("🔧 Preparer Stream", unique_streams, default=unique_streams, key="filtro_stream")
 
     # Status (no condicionado)
     unique_status = sorted(df["Status Mar"].dropna().unique())
