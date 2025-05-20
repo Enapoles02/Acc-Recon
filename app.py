@@ -397,22 +397,22 @@ if modo == "📋 Visor GL":
 
     # ✅ Mostrar tarjetas de GL
     def status_color(status):
-    if "APPROVED/On time" in status:
-        return '🟢✔️'
-    elif "APPROVED/Delayed" in status:
-        return '🟢🔴'
-    else:
-        color_map = {
-            'On time': '🟢',
-            'Delayed': '🔴',
-            'Pending': '⚪️',
-            'Review Required': '🟡',
-            'SUBMITTED': '🔵',
-            'ON HOLD': '🟠',
-            'REVIEWED': '🟣',
-            'APPROVED': '🟢✔️'
-        }
-        return color_map.get(status, '⚪️')
+        if "APPROVED/On time" in status:
+            return '🟢✔️'
+        elif "APPROVED/Delayed" in status:
+            return '🟢🔴'
+        else:
+            color_map = {
+                'On time': '🟢',
+                'Delayed': '🔴',
+                'Pending': '⚪️',
+                'Review Required': '🟡',
+                'SUBMITTED': '🔵',
+                'ON HOLD': '🟠',
+                'REVIEWED': '🟣',
+                'APPROVED': '🟢✔️'
+            }
+            return color_map.get(status, '⚪️')
     cols = st.columns([3, 9])
     with cols[0]:
         st.markdown("### 🧾 GL Accounts")
