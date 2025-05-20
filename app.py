@@ -403,35 +403,35 @@ if modo == "📋 Visor GL":
         st.session_state.current_page = 1
 
        # ✅ Filtros condicionantes por país, entidad, status, stream y usuario
-with st.sidebar:
-    st.markdown("### 🔎 Filtros")
-
-    # Filtro de país (se aplica primero)
-    unique_countries = sorted(df["Country"].dropna().unique())
-    selected_countries = st.multiselect("🌍 País", unique_countries, default=unique_countries, key="filtro_pais")
-
-    # Filtra el dataframe por país antes de poblar los demás filtros
-    df_filtered_by_country = df[df["Country"].isin(selected_countries)]
-
-    # Entidades dependientes del país
-    unique_entities = sorted(df_filtered_by_country["HFM CODE Entity"].dropna().unique())
-    selected_entities = st.multiselect("🏢 Entity", unique_entities, default=unique_entities, key="filtro_entidad")
-
-    # Preparer Stream dependiente del país
-    unique_streams = sorted(df_filtered_by_country["Preparer Stream"].dropna().unique())
-    selected_streams = st.multiselect("🔧 Preparer Stream", unique_streams, default=unique_streams, key="filtro_stream")
-
-    # Status (no condicionado)
-    unique_status = sorted(df["Status Mar"].dropna().unique())
-    selected_status = st.multiselect("📌 Status", unique_status, default=unique_status, key="filtro_status")
-
-    # Usuarios dependientes de país
-    if "Usuario Asignado" in df_filtered_by_country.columns:
-        unique_users = sorted(df_filtered_by_country["Usuario Asignado"].dropna().unique())
-        selected_users = st.multiselect("👤 Usuario Asignado", unique_users, default=unique_users, key="filtro_usuario")
-       
-
-       # ✅ Aplicar filtros
+    with st.sidebar:
+        st.markdown("### 🔎 Filtros")
+    
+        # Filtro de país (se aplica primero)
+        unique_countries = sorted(df["Country"].dropna().unique())
+        selected_countries = st.multiselect("🌍 País", unique_countries, default=unique_countries, key="filtro_pais")
+    
+        # Filtra el dataframe por país antes de poblar los demás filtros
+        df_filtered_by_country = df[df["Country"].isin(selected_countries)]
+    
+        # Entidades dependientes del país
+        unique_entities = sorted(df_filtered_by_country["HFM CODE Entity"].dropna().unique())
+        selected_entities = st.multiselect("🏢 Entity", unique_entities, default=unique_entities, key="filtro_entidad")
+    
+        # Preparer Stream dependiente del país
+        unique_streams = sorted(df_filtered_by_country["Preparer Stream"].dropna().unique())
+        selected_streams = st.multiselect("🔧 Preparer Stream", unique_streams, default=unique_streams, key="filtro_stream")
+    
+        # Status (no condicionado)
+        unique_status = sorted(df["Status Mar"].dropna().unique())
+        selected_status = st.multiselect("📌 Status", unique_status, default=unique_status, key="filtro_status")
+    
+        # Usuarios dependientes de país
+        if "Usuario Asignado" in df_filtered_by_country.columns:
+            unique_users = sorted(df_filtered_by_country["Usuario Asignado"].dropna().unique())
+            selected_users = st.multiselect("👤 Usuario Asignado", unique_users, default=unique_users, key="filtro_usuario")
+           
+    
+    # ✅ Aplicar filtros
     df = df[
         df["Country"].isin(selected_countries)
         & df["HFM CODE Entity"].isin(selected_entities)
