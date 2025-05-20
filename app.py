@@ -480,18 +480,32 @@ if modo == "📋 Visor GL":
                             st.error("❌ Contraseña incorrecta.")
                         else:
                             update_fields = {"Status Mar": selected_status}
+                            
                             if selected_status == "APPROVED":
                                 now = datetime.now(pytz.timezone("America/Mexico_City"))
                                 timestamp_str = now.strftime("%Y-%m-%d %H:%M:%S")
                                 update_fields["Completed Mar"] = "Yes"
                                 update_fields["Completed Timestamp"] = timestamp_str
+                
+                                # Calcular el deadline
+                                wd = get_stored_deadline_day()
+                                deadline_date = pd.Timestamp(now.replace(day=1)) + BDay(wd - 1)
+                                
+                                if now.date() <= deadline_date.date():
+                                    update_fields["Status Mar"] = "APPROVED/On time"
+                                else:
+                                    update_fields["Status Mar"] = "APPROVED/Delayed"
+                                
+                                update_fields["Deadline Used"] = deadline_date.strftime("%Y-%m-%d")
+                
                             live_doc_ref.update(update_fields)
-                            st.success(f"✅ Estatus actualizado a: {selected_status}")
+                            st.success(f"✅ Estatus actualizado a: {update_fields['Status Mar']}")
                             st.session_state["refresh_timestamp"] = datetime.now().timestamp()
                     else:
                         live_doc_ref.update({"Status Mar": selected_status})
                         st.success(f"✅ Estatus actualizado a: {selected_status}")
                         st.session_state["refresh_timestamp"] = datetime.now().timestamp()
+
 
             # Mostrar botón de revisión solo si no es APPROVER
             if role != "APPROVER":
