@@ -411,7 +411,7 @@ if modo == "📋 Visor GL":
                 'SUBMITTED': '🔵',
                 'ON HOLD': '🟠',
                 'REVIEWED': '🟣',
-                'APPROVED': '🟢✔️'
+                'APPROVED': '✔️'
             }
             return color_map.get(status, '⚪️')
     cols = st.columns([3, 9])
