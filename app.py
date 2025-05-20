@@ -436,7 +436,7 @@ if modo == "📋 Visor GL":
             if role in ["REVIEWER", "APPROVER", "FILLER"]:
                 # Opciones por rol
                 if role == "REVIEWER":
-                    options = ["SUBMITTED", "ON HOLD", "REVIEWED"]
+                    options = ["ON HOLD", "REVIEWED"]
                 elif role == "APPROVER":
                     options = ["APPROVED"]
                 else:
