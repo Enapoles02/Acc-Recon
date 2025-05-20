@@ -429,8 +429,7 @@ with st.sidebar:
     if "Usuario Asignado" in df_filtered_by_country.columns:
         unique_users = sorted(df_filtered_by_country["Usuario Asignado"].dropna().unique())
         selected_users = st.multiselect("👤 Usuario Asignado", unique_users, default=unique_users, key="filtro_usuario")
-        selected_users = []
-
+       
 
        # ✅ Aplicar filtros
     df = df[
