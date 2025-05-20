@@ -430,12 +430,19 @@ if modo == "📋 Visor GL":
             st.markdown(f"**Estatus actual:** `{current_status}`")
 
             # CONTROL DE STATUS por ROL
-            def password_required(action_label):
-                return st.text_input(f"🔒 Contraseña para {action_label}:", type="password", key=f"pw_{doc_id}_{action_label}")
-
-            if role in ["REVIEWER", "APPROVER"]:
-                options = ["SUBMITTED", "ON HOLD", "REVIEWED", "APPROVED"]
-                selected_status = st.selectbox("🧭 Cambiar estatus", options, index=options.index(current_status) if current_status in options else 0)
+    def password_required(action_label):
+        return st.text_input(f"🔒 Contraseña para {action_label}:", type="password", key=f"pw_{doc_id}_{action_label}")
+    
+    if role in ["REVIEWER", "APPROVER", "FILLER"]:
+        # Opciones por rol
+        if role == "REVIEWER":
+            options = ["SUBMITTED", "ON HOLD", "REVIEWED"]
+        elif role == "APPROVER":
+            options = ["APPROVED"]
+        else:
+            options = ["SUBMITTED"]
+    
+        selected_status = st.selectbox("🧭 Cambiar estatus", options, index=options.index(current_status) if current_status in options else 0)
 
                 password_input = ""
                 allowed = True
