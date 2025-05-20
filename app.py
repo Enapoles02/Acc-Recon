@@ -394,12 +394,12 @@ if modo == "📋 Visor GL":
        
 
     # ✅ Aplicar los filtros al dataframe
-df = df[
-    df["Country"].isin(selected_countries)
-    & df["HFM CODE Entity"].isin(selected_entities)
-    & df["Status Mar"].isin(selected_status)
-    & df["Preparer Stream"].isin(selected_streams)
-]
+    df = df[
+        df["Country"].isin(selected_countries)
+        & df["HFM CODE Entity"].isin(selected_entities)
+        & df["Status Mar"].isin(selected_status)
+        & df["Preparer Stream"].isin(selected_streams)
+    ]
     def status_color(status):
         color_map = {
             'On time': '🟢',
