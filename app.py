@@ -317,12 +317,16 @@ if modo == "📈 Dashboard KPI":
     if role == "ADMIN":
         st.markdown("### 📅 Desempeño diario por WD")
     
-        # Extraer fecha de completado y nombre
+                # Extraer fecha de completado y nombre
         df_wd = df[df["Completed Mar"].str.upper() == "YES"].copy()
         df_wd["Fecha"] = pd.to_datetime(df_wd["Completed Timestamp"], errors="coerce")
         df_wd["WD"] = df_wd["Fecha"].apply(lambda x: f"WD{sum((x >= d for d in workdays))}" if pd.notnull(x) else "N/A")
-    
-        resumen = df_wd.groupby(["User", "WD"]).size().unstack(fill_value=0)
+        
+        # ✅ Mapea el usuario con base en país y stream
+        df_wd["Usuario Asignado"] = df_wd.apply(map_user_from_access, axis=1)
+        
+        resumen = df_wd.groupby(["Usuario Asignado", "WD"]).size().unstack(fill_value=0)
+
         resumen = resumen.reindex(columns=[f"WD{i+1}" for i in range(len(workdays))], fill_value=0)
         selected_user = st.text_input("Buscar persona", "")
         if selected_user:
