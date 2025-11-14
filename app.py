@@ -3,44 +3,76 @@ import pandas as pd
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 from google.cloud.firestore_v1 import FieldFilter
-from pandas.tseries.offsets import BDay
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
-import plotly.express as px
+import random
 
-st.set_page_config(page_title="Reconciliación GL", layout="wide")
+# -------------------------------------------------
+# CONFIGURACIÓN BÁSICA
+# -------------------------------------------------
+st.set_page_config(page_title="Rifa de Fin de Año", layout="wide")
 
-# Usuario y roles
-user = st.sidebar.text_input("Usuario")
-user_role = st.sidebar.selectbox("Rol", ["FILLER", "REVIEWER", "APPROVER"])
+st.markdown(
+    """
+    <style>
+    .big-title {
+        font-size: 40px;
+        font-weight: 800;
+        text-align: center;
+        margin-bottom: 0px;
+    }
+    .subtitle {
+        font-size: 18px;
+        text-align: center;
+        color: #555;
+        margin-bottom: 30px;
+    }
+    .participant-card {
+        background-color: #f5f5f5;
+        border-radius: 18px;
+        padding: 10px 14px;
+        margin: 6px 0;
+        text-align: center;
+        font-weight: 600;
+        font-size: 16px;
+    }
+    .winner-banner {
+        background: linear-gradient(135deg, #ffaf00, #ffdd55);
+        border-radius: 20px;
+        padding: 20px;
+        text-align: center;
+        color: #000;
+        font-weight: 800;
+        font-size: 26px;
+        margin-bottom: 15px;
+    }
+    .winner-sub {
+        font-size: 16px;
+        text-align: center;
+        color: #333;
+        margin-bottom: 20px;
+    }
+    .pill {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background-color: #eee;
+        font-size: 12px;
+        margin: 2px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
-# Mapeo de acceso combinado
-USER_ACCESS = {
-    "Paula Sarachaga": {"countries": ["Argentina", "Chile", "Guatemala"], "streams": "ALL", "role": "FILLER"},
-    "Napoles Enrique": {"countries": ["Canada"], "streams": ["GL"], "role": "FILLER"},
-    "MSANCHEZ": {"countries": ["Canada","United States of America"], "streams": ["GL"], "role": "REVIEWER"},
-    "Julio": {"countries": ["United States of America"], "streams": "ALL", "role": "FILLER"},
-    "Guadalupe": {"countries": ["Mexico", "Peru", "Panama"], "streams": "ALL", "role": "FILLER"},
-    "Gabriel Aviles": {"countries": ["Canada", "United States of America"], "streams": ["RTR-FA"], "role": "REVIEWER"},
-    "Delhumeau Luis": {"countries": ["Canada"], "streams": ["RTR-ICO"], "role": "FILLER"},
-    "Guillermo Mayoral": {"countries": "ALL", "streams": "ALL", "role": "APPROVER"},
-    "Guillermo Guarneros": {"countries": "ALL", "streams": "ALL", "role": "APPROVER"},
-    "ADMIN": {"countries": "ALL", "streams": "ALL", "role": "ADMIN"}
-}
-
-if not user:
-    st.warning("Ingresa tu nombre de usuario para continuar.")
-    st.stop()
-
-user_info = USER_ACCESS.get(user, {"countries": [], "streams": [], "role": "FILLER"})
-allowed_countries = user_info.get("countries", [])
-allowed_streams = user_info.get("streams", [])
-role = user_info.get("role", "FILLER")
-
+# -------------------------------------------------
+# CONEXIÓN A FIREBASE (MISMA BASE QUE USABAS)
+# -------------------------------------------------
 @st.cache_resource
 def init_firebase():
     firebase_creds = st.secrets["firebase_credentials"]
+    # En Streamlit Cloud suele venir como AttrDict
     if hasattr(firebase_creds, "to_dict"):
         firebase_creds = firebase_creds.to_dict()
     bucket_name = st.secrets["firebase_bucket"]["firebase_bucket"]
@@ -51,597 +83,380 @@ def init_firebase():
 
 db, bucket = init_firebase()
 
-def get_stored_deadline_day():
-    doc = db.collection("config").document("general_settings").get()
-    if doc.exists and "deadline_day" in doc.to_dict():
-        return int(doc.to_dict()["deadline_day"])
-    return 3
+# Zona horaria MX
+TZ = pytz.timezone("America/Mexico_City")
 
-def set_stored_deadline_day(day: int):
-    db.collection("config").document("general_settings").set({"deadline_day": day}, merge=True)
+# -------------------------------------------------
+# UTILIDADES FIREBASE PARA LA RIFA
+# -------------------------------------------------
+PARTICIPANTS_COL = "raffle_participants"
+RESULTS_COL = "raffle_results"
 
-def load_data():
-    docs = db.collection("reconciliation_records").stream()
-    recs = []
+def register_participant(name: str, email: str = "", area: str = "", team: str = ""):
+    """Registra un participante en la colección raffle_participants."""
+    if not name.strip():
+        return False, "El nombre es obligatorio."
+
+    name = name.strip().upper()
+
+    # Evitar duplicados exactos por nombre+email (modo simple)
+    docs = db.collection(PARTICIPANTS_COL).where("name", "==", name).stream()
     for d in docs:
         data = d.to_dict()
-        flat_data = {"_id": d.id}
-        for k, v in data.items():
-            flat_data[str(k).strip()] = v
-        recs.append(flat_data)
-    return pd.DataFrame(recs)
-@st.cache_data
-def load_mapping():
-    url = "https://raw.githubusercontent.com/Enapoles02/Acc-Recon/main/Mapping.csv"
-    df_map = pd.read_csv(url, dtype=str)
-    df_map.columns = df_map.columns.str.strip().str.replace(r'\s+', ' ', regex=True)
-    df_map = df_map.rename(columns={"Group": "ReviewGroup"})
-    return df_map
+        if email and data.get("email", "").strip().lower() == email.strip().lower():
+            return False, "Ya estás registrado con ese correo."
 
-def save_comment(doc_id, new_entry):
-    doc_ref = db.collection("reconciliation_records").document(doc_id)
-    doc = doc_ref.get()
-    previous = doc.to_dict().get("comment", "") if doc.exists else ""
-    updated = f"{previous}\n{new_entry}" if previous else new_entry
-    doc_ref.update({"comment": updated})
+    doc_id = str(uuid.uuid4())
+    now = datetime.now(TZ)
 
-def upload_file_to_bucket(gl_account, uploaded_file):
-    blob_path = f"reconciliation_records/{gl_account}/{uploaded_file.name}"
-    blob = bucket.blob(blob_path)
-    blob.upload_from_file(uploaded_file, content_type=uploaded_file.type)
-    return blob.generate_signed_url(expiration=timedelta(hours=2))
+    payload = {
+        "name": name,
+        "email": email.strip(),
+        "area": area.strip(),
+        "team": team.strip(),
+        "created_at": now.isoformat(),
+        "created_at_ts": now,
+        "has_won": False,
+        "prize": None,
+        "active": True,
+    }
+    db.collection(PARTICIPANTS_COL).document(doc_id).set(payload)
+    return True, doc_id
 
-def log_upload(metadata):
-    log_id = str(uuid.uuid4())
-    db.collection("upload_logs").document(log_id).set(metadata)
+def fetch_participants(include_winners: bool = True):
+    """Trae todos los participantes; si include_winners=False, filtra en Python."""
+    docs = db.collection(PARTICIPANTS_COL).stream()
+    rows = []
+    for d in docs:
+        data = d.to_dict()
+        data["_id"] = d.id
+        rows.append(data)
+    df = pd.DataFrame(rows) if rows else pd.DataFrame()
+    if not df.empty:
+        # Orden por fecha
+        if "created_at_ts" in df.columns:
+            df = df.sort_values("created_at_ts")
+        elif "created_at" in df.columns:
+            df = df.sort_values("created_at")
+        if not include_winners and "has_won" in df.columns:
+            df = df[~df["has_won"].fillna(False)]
+    return df
 
-df = load_data()
-mapping_df = load_mapping()
+def fetch_recent_participants(limit: int = 12):
+    """Últimos participantes (para la vista tipo Kahoot)."""
+    docs = (
+        db.collection(PARTICIPANTS_COL)
+        .order_by("created_at_ts", direction=firestore.Query.DESCENDING)
+        .limit(limit)
+        .stream()
+    )
+    rows = []
+    for d in docs:
+        data = d.to_dict()
+        data["_id"] = d.id
+        rows.append(data)
+    df = pd.DataFrame(rows) if rows else pd.DataFrame()
+    return df
 
-# 🔁 Función para mapear usuario según país y preparer stream
-def map_user_from_access(row):
-    for username, access in USER_ACCESS.items():
-        user_countries = access["countries"]
-        user_streams = access["streams"]
+def fetch_winners(limit: int = 50):
+    """Historial de ganadores."""
+    docs = (
+        db.collection(RESULTS_COL)
+        .order_by("drawn_at_ts", direction=firestore.Query.DESCENDING)
+        .limit(limit)
+        .stream()
+    )
+    rows = []
+    for d in docs:
+        data = d.to_dict()
+        data["_id"] = d.id
+        rows.append(data)
+    df = pd.DataFrame(rows) if rows else pd.DataFrame()
+    return df
 
-        if user_countries != "ALL" and row["Country"] not in user_countries:
-            continue
-        if user_streams != "ALL" and row["Preparer Stream"] not in user_streams:
-            continue
-        return username
-    return "Desconocido"
+def draw_winner(prize: str, admin_name: str = "ADMIN"):
+    """Selecciona ganador aleatorio entre quienes no han ganado aún."""
+    if not prize.strip():
+        return None, "Define un premio para esta ronda."
 
+    df = fetch_participants(include_winners=False)
+    if df.empty:
+        return None, "No hay participantes disponibles (o ya todos ganaron)."
 
-if "GL Account" in df.columns and "GL Account" in mapping_df.columns:
-    df["GL Account"] = df["GL Account"].astype(str).str.zfill(10).str.strip()
-    mapping_df["GL Account"] = mapping_df["GL Account"].astype(str).str.zfill(10).str.strip()
-    mapping_df = mapping_df.drop_duplicates(subset=["GL Account"])
-    df = df.merge(mapping_df, on="GL Account", how="left")
-    df["ReviewGroup"] = df["ReviewGroup"].fillna("Others")
-    df["Usuario Asignado"] = df.apply(map_user_from_access, axis=1)
+    winner_row = df.sample(1).iloc[0]
+    winner_id = winner_row["_id"]
+    winner_name = winner_row["name"]
+
+    now = datetime.now(TZ)
+
+    # Actualizar al participante (marcar como ganador)
+    db.collection(PARTICIPANTS_COL).document(winner_id).update(
+        {
+            "has_won": True,
+            "prize": prize.strip(),
+        }
+    )
+
+    # Registrar resultado en la colección de resultados
+    result_payload = {
+        "participant_id": winner_id,
+        "name": winner_name,
+        "prize": prize.strip(),
+        "drawn_at": now.isoformat(),
+        "drawn_at_ts": now,
+        "drawn_by": admin_name,
+    }
+    result_id = str(uuid.uuid4())
+    db.collection(RESULTS_COL).document(result_id).set(result_payload)
+
+    return winner_row, None
+
+def get_last_winner():
+    """Último ganador registrado."""
+    df = fetch_winners(limit=1)
+    if df.empty:
+        return None
+    return df.iloc[0]
+
+# -------------------------------------------------
+# CONTROL DE ADMIN (PUENTE CON SECRETS)
+# -------------------------------------------------
+def check_is_admin():
+    """Usa un password guardado en secrets para permitir girar la ruleta."""
+    admin_pw_secret = None
+    try:
+        admin_pw_secret = st.secrets["raffle_admin"]["password"]
+    except Exception:
+        # Si no está configurado, nadie es admin (pero no rompas la app)
+        return False
+
+    entered_pw = st.session_state.get("admin_password_value", "")
+    return bool(admin_pw_secret) and entered_pw == admin_pw_secret
+
+# -------------------------------------------------
+# SIDEBAR: DATOS DE USUARIO / ADMIN
+# -------------------------------------------------
+st.sidebar.title("🎄 Rifa de Fin de Año")
+host_name = st.sidebar.text_input("Tu nombre (host / admin / invitado)", value="")
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🔐 Admin (solo para girar ruleta)")
+admin_pw_input = st.sidebar.text_input(
+    "Código admin", type="password", key="admin_password_value"
+)
+is_admin = check_is_admin()
+if is_admin:
+    st.sidebar.success("Modo ADMIN activado.")
 else:
-    st.warning("No se pudo hacer el merge con Mapping.csv.")
+    st.sidebar.info("Si eres admin, ingresa el código para poder girar la ruleta.")
 
-# Filtros por acceso
-if allowed_countries != "ALL":
-    df = df[df["Country"].isin(allowed_countries)]
+st.sidebar.markdown("---")
+st.sidebar.caption("La información se guarda en Firebase en tiempo real.")
 
-if allowed_streams != "ALL":
-    df = df[df["Preparer Stream"].isin(allowed_streams)]
+# -------------------------------------------------
+# NAVEGACIÓN SUPERIOR (TABS)
+# -------------------------------------------------
+st.markdown("<div class='big-title'>Rifa de Fin de Año</div>", unsafe_allow_html=True)
+st.markdown(
+    "<div class='subtitle'>Regístrate, mira la rifa en vivo y celebra a los ganadores 🎁</div>",
+    unsafe_allow_html=True,
+)
 
-if df.empty:
-    st.info("No hay datos cargados.")
-    st.stop()
+tab_registro, tab_rifa, tab_wall = st.tabs(
+    ["🙋 Regístrate", "🎰 Rifa en tiempo real", "📺 Muro en vivo (tipo Kahoot)"]
+)
 
-now = datetime.now(pytz.timezone("America/Mexico_City"))
-today = pd.Timestamp(now.date())
+# -------------------------------------------------
+# TAB 1: REGISTRO DE PARTICIPANTES
+# -------------------------------------------------
+with tab_registro:
+    st.subheader("🙋 Regístrate para la rifa")
 
-import calendar
+    st.markdown(
+        "Completa tus datos para participar en la rifa de fin de año. "
+        "Solo necesitas registrarte **una vez**."
+    )
 
-def get_workdays(year, month):
-    # Último día del mes
-    last_day = calendar.monthrange(year, month)[1]
-    first_day = pd.Timestamp(f"{year}-{month:02d}-01")
-    last_day_date = pd.Timestamp(f"{year}-{month:02d}-{last_day}")
-    
-    # Todos los días hábiles entre el 1 y el último del mes
-    workdays = pd.date_range(first_day, last_day_date, freq=BDay())
-    return workdays
+    with st.form("registration_form", clear_on_submit=True):
+        col_a, col_b = st.columns(2)
+        with col_a:
+            name = st.text_input("Nombre completo*", placeholder="Ej. ENRIQUE NÁPOLES")
+            email = st.text_input("Correo (opcional)", placeholder="empresa@correo.com")
+        with col_b:
+            area = st.text_input("Área / Departamento", placeholder="Ej. R2R, PTP, OTC...")
+            team = st.text_input("Equipo / Sede", placeholder="Ej. NAMER, LATAM, CDMX...")
 
+        submitted = st.form_submit_button("✅ Registrarme")
+        if submitted:
+            ok, msg = register_participant(name, email, area, team)
+            if ok:
+                st.success("Registro completado. ¡Ya estás participando en la rifa! 🎉")
+                st.balloons()
+            else:
+                st.error(msg)
 
-workdays = get_workdays(today.year, today.month)
-day_is_wd1 = today == workdays[0]
-day_is_wd4 = len(workdays) >= 4 and today == workdays[3]
+    st.markdown("---")
 
-# Región por país
-df["Region"] = df["Country"].apply(lambda x: "NAMER" if x in ["Canada", "United States of America"] else "LATAM")
+    # Resumen rápido
+    df_all = fetch_participants(include_winners=True)
+    total_participants = len(df_all)
+    unique_names = df_all["name"].nunique() if not df_all.empty else 0
 
-# Selección de vista
-modo = st.sidebar.selectbox("Selecciona vista:", ["📈 Dashboard KPI", "📋 Visor GL"])
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Participantes registrados", total_participants)
+    col2.metric("Personas únicas", unique_names)
+    col3.metric(
+        "Ganadores hasta ahora",
+        fetch_winners(limit=500).shape[0]
+    )
 
-# Opciones exclusivas para ADMIN
-if user == "ADMIN":
-    st.sidebar.markdown("## ⚙️ Opciones de Admin")
-
-    # Asegurar que el valor no sea mayor a 10 para evitar errores
-    current_deadline = min(get_stored_deadline_day(), 10)
-
-    new_deadline = st.sidebar.number_input("📅 Día límite (WD)", min_value=1, max_value=10, value=current_deadline, step=1)
-    if new_deadline != current_deadline:
-        set_stored_deadline_day(new_deadline)
-        st.sidebar.success(f"Día límite actualizado a WD{new_deadline}")
-
-    # Botón para reiniciar todos los estados del mes
-    if st.sidebar.button("♻️ Resetear estados del mes"):
-        docs = list(db.collection("reconciliation_records").stream())
-        total = len(docs)
-        progress = st.sidebar.progress(0, text="Reiniciando estados...")
-
-        for i, doc in enumerate(docs):
-            doc.reference.update({
-                "Completed Mar": "No",
-                "Status Mar": "Pending",
-                "Completed Timestamp": firestore.DELETE_FIELD,
-                "Deadline Used": firestore.DELETE_FIELD
-            })
-            progress.progress((i + 1) / total)
-
-        progress.empty()
-        st.sidebar.success("Todos los estados fueron reiniciados.")
-
-    # Botón para forzar evaluación de estatus "On time" / "Completed/Delayed"
-    if st.sidebar.button("📌 Forzar evaluación de 'On time' / 'Delayed'"):
-        wd = get_stored_deadline_day()
-        today = pd.Timestamp(datetime.now(pytz.timezone("America/Mexico_City")).date())
-        deadline_date = pd.Timestamp(today.replace(day=1)) + BDay(wd - 1)
-
-        docs = list(db.collection("reconciliation_records").stream())
-        total = len(docs)
-        progress = st.sidebar.progress(0, text="Evaluando estatus...")
-
-        for i, doc in enumerate(docs):
-            data = doc.to_dict()
-            completed = data.get("Completed Mar", "No").strip().upper()
-            current_status = data.get("Status Mar", "Pending")
-
-            if completed == "YES":
-                completed_date_str = data.get("Completed Timestamp")
-                if completed_date_str:
-                    completed_date = pd.to_datetime(completed_date_str)
-                    status = "On time" if completed_date <= deadline_date else "Completed/Delayed"
-                    doc.reference.update({
-                        "Status Mar": status,
-                        "Deadline Used": deadline_date.strftime("%Y-%m-%d")
-                    })
-
-            elif completed == "NO" and current_status == "Pending" and today > deadline_date:
-                doc.reference.update({
-                    "Status Mar": "Delayed",
-                    "Deadline Used": deadline_date.strftime("%Y-%m-%d")
-                })
-
-            progress.progress((i + 1) / total)
-
-        progress.empty()
-        st.sidebar.success("Evaluación de estado completada.")
-
-def map_user_from_access(row):
-    for username, access in USER_ACCESS.items():
-        if username in ["Guillermo Mayoral", "Guillermo Guarneros"]:
-            continue  # ❌ Excluir estos usuarios
-
-        user_countries = access["countries"]
-        user_streams = access["streams"]
-
-        if user_countries != "ALL" and row["Country"] not in user_countries:
-            continue
-
-        if user_streams != "ALL" and row["Preparer Stream"] not in user_streams:
-            continue
-
-        return username
-    return "Desconocido"
-
-
-# -------------------------------
-# KPI DASHBOARD
-# -------------------------------
-if modo == "📈 Dashboard KPI":
-    st.title("📊 Dashboard KPI - Estado de Conciliaciones")
-
-    region_filter = st.sidebar.selectbox("🌎 Región", ["Todas"] + sorted(df["Region"].unique()))
-    filtered_df = df.copy()
-
-    if region_filter != "Todas":
-        filtered_df = filtered_df[filtered_df["Region"] == region_filter]
-
-    available_countries = sorted(filtered_df["Country"].dropna().unique())
-    selected_countries = st.sidebar.multiselect("🌍 País", available_countries, default=available_countries)
-    filtered_df = filtered_df[filtered_df["Country"].isin(selected_countries)]
-
-    available_streams = sorted(filtered_df["Preparer Stream"].dropna().unique())
-    selected_streams = st.sidebar.multiselect("🧩 Preparer Stream", available_streams, default=available_streams)
-    filtered_df = filtered_df[filtered_df["Preparer Stream"].isin(selected_streams)]
-
-    reviewer_options = sorted(filtered_df["ReviewGroup"].dropna().unique())
-    reviewer_group = st.sidebar.selectbox("👥 Reviewer Group", ["Todos"] + reviewer_options)
-    if reviewer_group != "Todos":
-        filtered_df = filtered_df[filtered_df["ReviewGroup"] == reviewer_group]
-
-    # --- KPI visual de revisión requerida ---
-    review_count = filtered_df[filtered_df["Status Mar"] == "Review Required"].shape[0]
-    if review_count > 0:
-        st.markdown(f"""
-            <div style='
-                background-color:#fff3cd;
-                color:#856404;
-                padding:15px;
-                border-left: 5px solid #ffc107;
-                border-radius:5px;
-                margin-top:10px;
-                font-size:18px;
-            '>
-            ⚠️ <strong>{review_count}</strong> cuentas están marcadas como <strong>Review Required</strong>.
-            </div>
-        """, unsafe_allow_html=True)
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("📌 Estado general (Pending vs Completed vs Review)")
-        pie_data = filtered_df[filtered_df["Status Mar"].isin(["Pending", "On time", "Completed/Delayed", "Review Required"])].copy()
-        pie_data["Status Simplified"] = pie_data["Status Mar"].apply(
-            lambda x: "Completed" if x in ["On time", "Completed/Delayed"] else (
-                "Review Required" if x == "Review Required" else "Pending")
-        )
-
-        if not pie_data.empty:
-            pie_counts = pie_data["Status Simplified"].value_counts().reset_index()
-            pie_counts.columns = ["Status", "Count"]
-
-            pie_fig = px.pie(
-                pie_counts,
-                names="Status",
-                values="Count",
-                title="Estado General",
-                hover_data=["Count"],
-                color="Status",
-                color_discrete_map={
-                    "Completed": "green",
-                    "Pending": "gray",
-                    "Review Required": "gold"
-                }
-            )
-            pie_fig.update_traces(
-                textinfo='label+value+percent',
-                hovertemplate='%{label}: %{value} cuentas (%{percent})'
-            )
-            st.plotly_chart(pie_fig, use_container_width=True)
-        else:
-            st.info("No hay datos suficientes para la gráfica de pastel.")
-
-    with col2:
-        st.subheader("⏱️ Desempeño por Status (completados y revisión)")
-        bar_data = filtered_df[filtered_df["Status Mar"].isin(["On time", "Delayed", "Completed/Delayed", "Review Required"])]
-        if not bar_data.empty:
-            bar_counts = bar_data["Status Mar"].value_counts().reset_index()
-            bar_counts.columns = ["Status", "Count"]
-
-            bar_fig = px.bar(
-                bar_counts, x="Status", y="Count",
-                title="⏱️ Desempeño por Status",
-                color="Status", height=350,
-                color_discrete_map={
-                    "On time": "green",
-                    "Completed/Delayed": "lightgreen",
-                    "Delayed": "red",
-                    "Review Required": "gold"
-                }
-            )
-
-            st.plotly_chart(bar_fig, use_container_width=True)
-        else:
-            st.info("No hay datos suficientes para la gráfica de barras.")
-
-    # Drilldown de cuentas pendientes de revisión
-    review_pending_df = filtered_df[filtered_df["Status Mar"] == "Review Required"]
-    if not review_pending_df.empty:
-        with st.expander("🔍 Ver cuentas pendientes de revisión"):
-            st.markdown("Estas cuentas están marcadas con **⚠️ Review Required**.")
+    if not df_all.empty:
+        with st.expander("Ver listado de participantes"):
             st.dataframe(
-                review_pending_df[[
-                    "GL Account", "GL NAME", "Country", "ReviewGroup", "HFM CODE Entity"
-                ]].sort_values("GL Account"),
-                use_container_width=True
+                df_all[["name", "email", "area", "team", "has_won", "prize"]],
+                use_container_width=True,
             )
 
-    # Cuadro resumen por persona y WD solo para ADMIN
-    if role == "ADMIN":
-        st.markdown("### 📅 Desempeño diario por WD")
-    
-                # Extraer fecha de completado y nombre
-        df_wd = df[df["Completed Mar"].str.upper() == "YES"].copy()
-        df_wd["Fecha"] = pd.to_datetime(df_wd["Completed Timestamp"], errors="coerce")
-        df_wd["WD"] = df_wd["Fecha"].apply(lambda x: f"WD{sum((x >= d for d in workdays))}" if pd.notnull(x) else "N/A")
-        
-        # ✅ Mapea el usuario con base en país y stream
-        df_wd["Usuario Asignado"] = df_wd.apply(map_user_from_access, axis=1)
-        
-        # 🔴 Limpieza y exclusión de approvers
-        df_wd["Usuario Asignado"] = df_wd["Usuario Asignado"].str.strip()
-        usuarios_excluidos = ["Guillermo Mayoral", "Guillermo Guarneros", "ADMIN"]
-        df_wd = df_wd[~df_wd["Usuario Asignado"].isin(usuarios_excluidos)]
-        
-               
-        # ✅ Generar el resumen solo si hay datos
-        if not df_wd.empty:
-            resumen = df_wd.groupby(["Usuario Asignado", "WD"]).size().unstack(fill_value=0)
-            resumen = resumen.reindex(columns=[f"WD{i+1}" for i in range(len(workdays))], fill_value=0)
-        
-            selected_user = st.text_input("Buscar persona", "")
-            if selected_user:
-                resumen = resumen[resumen.index.str.contains(selected_user, case=False)]
-        
-            st.dataframe(resumen.style.highlight_max(axis=1), use_container_width=True)
-        else:
-            st.info("No hay datos disponibles para mostrar el desempeño por WD.")
+# -------------------------------------------------
+# TAB 2: RIFA EN TIEMPO REAL (ADMIN GIRA, TODOS VEN)
+# -------------------------------------------------
+with tab_rifa:
+    st.subheader("🎰 Rifa en tiempo real")
 
-
-
-
-
-
-
-    
-    st.markdown("🔍 Este dashboard refleja el estado de conciliaciones según los filtros aplicados.")
-# -------------------------------
-# VISOR GL
-# -------------------------------
-if modo == "📋 Visor GL":
-    records_per_page = 5
-    if "current_page" not in st.session_state:
-        st.session_state.current_page = 1
-
-       # ✅ Filtros condicionantes por país, entidad, status, stream y usuario
-    with st.sidebar:
-        st.markdown("### 🔎 Filtros")
-    
-        # Filtro de país (se aplica primero)
-        unique_countries = sorted(df["Country"].dropna().unique())
-        selected_countries = st.multiselect("🌍 País", unique_countries, default=unique_countries, key="filtro_pais")
-    
-        # Filtra el dataframe por país antes de poblar los demás filtros
-        df_filtered_by_country = df[df["Country"].isin(selected_countries)]
-    
-        # Entidades dependientes del país
-        unique_entities = sorted(df_filtered_by_country["HFM CODE Entity"].dropna().unique())
-        selected_entities = st.multiselect("🏢 Entity", unique_entities, default=unique_entities, key="filtro_entidad")
-    
-        # Preparer Stream dependiente del país
-        unique_streams = sorted(df_filtered_by_country["Preparer Stream"].dropna().unique())
-        selected_streams = st.multiselect("🔧 Preparer Stream", unique_streams, default=unique_streams, key="filtro_stream")
-    
-        # Status (no condicionado)
-        unique_status = sorted(df["Status Mar"].dropna().unique())
-        selected_status = st.multiselect("📌 Status", unique_status, default=unique_status, key="filtro_status")
-    
-        # Usuarios dependientes de país
-        if "Usuario Asignado" in df_filtered_by_country.columns:
-            unique_users = sorted(df_filtered_by_country["Usuario Asignado"].dropna().unique())
-            selected_users = st.multiselect("👤 Usuario Asignado", unique_users, default=unique_users, key="filtro_usuario")
-           
-    
-    # ✅ Aplicar filtros
-    df = df[
-        df["Country"].isin(selected_countries)
-        & df["HFM CODE Entity"].isin(selected_entities)
-        & df["Status Mar"].isin(selected_status)
-        & df["Preparer Stream"].isin(selected_streams)
-        & df["Usuario Asignado"].isin(selected_users)
-    ]
-
-    # ✅ Buscador de GL Account
-    search_gl = st.text_input("🔍 Buscar GL Account (número):").strip()
-
-    # ✅ Paginación
-    current_page = st.session_state.current_page
-    start_idx = (current_page - 1) * records_per_page
-    end_idx = start_idx + records_per_page
-
-    if search_gl:
-        filtered_gl_df = df[df["GL Account"].str.contains(search_gl.zfill(10), na=False)]
-        paginated_df = filtered_gl_df.reset_index(drop=True)
-        max_pages = 1
-        st.session_state.current_page = 1
+    last_winner = get_last_winner()
+    if last_winner is not None:
+        st.markdown(
+            f"<div class='winner-banner'>🎉 ¡Último ganador: {last_winner['name']}! 🎉</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"<div class='winner-sub'>Premio: <b>{last_winner['prize']}</b> | "
+            f"Sorteado por: <b>{last_winner.get('drawn_by', 'ADMIN')}</b></div>",
+            unsafe_allow_html=True,
+        )
     else:
-        paginated_df = df.iloc[start_idx:end_idx].reset_index(drop=True)
-        total_records = len(df)
-        max_pages = (total_records - 1) // records_per_page + 1
+        st.info("Aún no hay ganadores. ¡Sé el primero en girar la ruleta (modo admin)!")
 
-    selected_index = st.session_state.get("selected_index", None)
+    # Vista general de participantes y ganadores
+    col_left, col_right = st.columns([2, 1])
+    with col_left:
+        st.markdown("#### Participantes disponibles para ganar")
 
-    # ✅ Controles de navegación
-    col1, col2 = st.columns([1, 8])
-    with col1:
-        if st.button("⬅️") and st.session_state.current_page > 1:
-            st.session_state.current_page -= 1
-    with col2:
-        if st.button("➡️") and st.session_state.current_page < max_pages:
-            st.session_state.current_page += 1
-
-    # ✅ Mostrar tarjetas de GL
-    def status_color(status):
-        status = str(status).strip().upper()  # Normaliza para evitar errores de formato
-        if "APPROVED/ON TIME" in status:
-            return '🟢✔️'
-        elif "APPROVED/DELAYED" in status:
-            return '🟢🔴'
+        df_no_winners = fetch_participants(include_winners=False)
+        if df_no_winners.empty:
+            st.warning("No hay participantes disponibles (o todos ya ganaron).")
         else:
-            color_map = {
-                'ON TIME': '🟢',
-                'DELAYED': '🔴',
-                'PENDING': '⚪️',
-                'REVIEW REQUIRED': '🟡',
-                'SUBMITTED': '🔵',
-                'ON HOLD': '🟠',
-                'REVIEWED': '🟣',
-                'APPROVED': '✔️'
-            }
-            return color_map.get(status, '⚪️')
-    cols = st.columns([3, 9])
-    with cols[0]:
-        st.markdown("### 🧾 GL Accounts")
-        for i, row in paginated_df.iterrows():
-            gl_account = str(row.get("GL Account", "")).zfill(10)
-            status = row.get("Status Mar", "Pending")
-            color = status_color(status)
-            gl_name = str(row.get("GL NAME", "Sin nombre"))
-            if gl_name is None or gl_name == "Ellipsis" or gl_name == str(...):
-                gl_name = "Sin nombre"
-            label = f"{color} {gl_account} - {gl_name}"
-            if st.button(label, key=f"btn_{i}"):
-                st.session_state.selected_index = i
-                selected_index = i
-    with cols[1]:
-        if selected_index is not None:
-            row = paginated_df.iloc[selected_index]
-            doc_id = row['_id']
-            gl_account = str(row.get("GL Account", "")).zfill(10)
+            st.write(f"Participantes disponibles: **{len(df_no_winners)}**")
+            names_preview = df_no_winners["name"].tolist()
+            # Mostrar algunos nombres en "píldoras"
+            pills_html = " ".join(
+                [f"<span class='pill'>{n}</span>" for n in names_preview[:60]]
+            )
+            st.markdown(pills_html, unsafe_allow_html=True)
 
-            st.markdown(f"### Detalles de GL {gl_account}")
-            st.markdown(f"**GL NAME:** {row.get('GL NAME')}")
-            st.markdown(f"**Balance:** {row.get('Balance  in EUR at 31/3', 'N/A')}")
-            st.markdown(f"**País:** {row.get('Country', 'N/A')}")
-            st.markdown(f"**Entity:** {row.get('HFM CODE Entity', 'N/A')}")
-            st.markdown(f"**Review Group:** {row.get('ReviewGroup', 'Others')}")
-            st.markdown(f"**Preparer Stream:** {row.get('Preparer Stream', 'N/A')}")
-
-            live_doc_ref = db.collection("reconciliation_records").document(doc_id)
-            live_doc = live_doc_ref.get().to_dict()
-
-            # Mostrar estatus actual
-            current_status = live_doc.get("Status Mar", "Pending")
-            st.markdown(f"**Estatus actual:** `{current_status}`")
-
-            # CONTROL DE STATUS por ROL
-            def password_required(action_label):
-                return st.text_input(f"🔒 Contraseña para {action_label}:", type="password", key=f"pw_{doc_id}_{action_label}")
-            
-            if role in ["REVIEWER", "APPROVER", "FILLER"]:
-                # Opciones por rol
-                if role == "REVIEWER":
-                    options = ["ON HOLD", "REVIEWED"]
-                elif role == "APPROVER":
-                    options = ["APPROVED"]
-                else:
-                    options = ["SUBMITTED"]
-            
-                selected_status = st.selectbox("🧭 Cambiar estatus", options, index=options.index(current_status) if current_status in options else 0)
-
-                password_input = ""
-                allowed = True
-                if selected_status in ["ON HOLD", "REVIEWED"] and role != "REVIEWER":
-                    allowed = False
-                if selected_status == "APPROVED" and role != "APPROVER":
-                    allowed = False
-                if selected_status in ["ON HOLD", "REVIEWED", "APPROVED"]:
-                    password_input = password_required(selected_status)
-
-                if st.button("✅ Actualizar estatus", key=f"update_status_{doc_id}") and allowed:
-                    if selected_status in ["ON HOLD", "REVIEWED", "APPROVED"]:
-                        expected_password = (
-                            st.secrets["role_passwords"]["reviewer_password"]
-                            if selected_status in ["ON HOLD", "REVIEWED"]
-                            else st.secrets["role_passwords"]["approver_password"]
-                        )
-                
-                        if password_input != expected_password:
-                            st.error("❌ Contraseña incorrecta.")
-                        else:
-                            update_fields = {"Status Mar": selected_status}
-                            
-                            if selected_status == "APPROVED":
-                                now = datetime.now(pytz.timezone("America/Mexico_City"))
-                                timestamp_str = now.strftime("%Y-%m-%d %H:%M:%S")
-                                update_fields["Completed Mar"] = "Yes"
-                                update_fields["Completed Timestamp"] = timestamp_str
-                
-                                # Calcular el deadline
-                                wd = get_stored_deadline_day()
-                                deadline_date = pd.Timestamp(now.replace(day=1)) + BDay(wd - 1)
-                                
-                                if now.date() <= deadline_date.date():
-                                    update_fields["Status Mar"] = "APPROVED/On time"
-                                else:
-                                    update_fields["Status Mar"] = "APPROVED/Delayed"
-                                
-                                update_fields["Deadline Used"] = deadline_date.strftime("%Y-%m-%d")
-                
-                            live_doc_ref.update(update_fields)
-                            st.success(f"✅ Estatus actualizado a: {update_fields['Status Mar']}")
-                            st.session_state["refresh_timestamp"] = datetime.now().timestamp()
-                    else:
-                        live_doc_ref.update({"Status Mar": selected_status})
-                        st.success(f"✅ Estatus actualizado a: {selected_status}")
-                        st.session_state["refresh_timestamp"] = datetime.now().timestamp()
-
-
-            # Mostrar botón de revisión solo si no es APPROVER
-            if role != "APPROVER":
-                review_required = current_status == "Review Required"
-                new_review = st.checkbox("⚠️ Review Required", value=review_required, key=f"review_required_{doc_id}")
-                if new_review != review_required:
-                    new_status = "Review Required" if new_review else "Pending"
-                    update_fields = {"Status Mar": new_status}
-                    if new_review:
-                        update_fields["Completed Mar"] = "No"
-                    live_doc_ref.update(update_fields)
-                    st.success(f"✔️ Estado actualizado a: {new_status}")
-                    st.session_state["refresh_timestamp"] = datetime.now().timestamp()
-
-            # Mostrar Plan de Acción
-            current_action = live_doc.get("Plan de Acción", "No")
-            plan_required = current_action == "Yes"
-            plan_toggle = st.checkbox("📝 Plan de Acción requerido", value=plan_required, key=f"plan_{doc_id}")
-            if plan_toggle != plan_required:
-                update_val = "Yes" if plan_toggle else "No"
-                live_doc_ref.update({"Plan de Acción": update_val})
-                st.success(f"📌 Plan de Acción actualizado a: {update_val}")
-
-            # Comentarios
-            comment_history = live_doc.get("comment", "") or ""
-            if isinstance(comment_history, str) and comment_history.strip():
-                for line in comment_history.strip().split("\n"):
-                    st.markdown(f"<div style='background-color:#f1f1f1;padding:10px;border-radius:10px;margin-bottom:10px'>💬 {line}</div>", unsafe_allow_html=True)
-
-            new_comment = st.text_area("Nuevo comentario", key=f"comment_input_{doc_id}")
-            if st.button("💾 Guardar comentario", key=f"save_{doc_id}"):
-                now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
-                entry = f"{user} ({now}): {new_comment}"
-                save_comment(doc_id, entry)
-                st.success("Comentario guardado")
-                st.session_state["refresh_timestamp"] = datetime.now().timestamp()
-
-            # Carga de archivo
-            uploaded_file = st.file_uploader("📎 Subir archivo de soporte", type=None, key=f"upload_{doc_id}")
-            if uploaded_file:
-                if st.button("✅ Confirmar carga de archivo", key=f"confirm_upload_{doc_id}"):
-                    file_url = upload_file_to_bucket(gl_account, uploaded_file)
-                    db.collection("reconciliation_records").document(doc_id).update({"file_url": file_url})
-                    now = datetime.now(pytz.timezone("America/Mexico_City")).strftime("%Y-%m-%d %H:%M:%S")
-                    log_upload({
-                        "file_name": uploaded_file.name,
-                        "uploaded_at": now,
-                        "user": user,
-                        "gl_account": gl_account,
-                        "file_url": file_url
-                    })
-                    st.success("Archivo cargado correctamente")
-                    st.session_state["refresh_timestamp"] = datetime.now().timestamp()
-
-            file_url = row.get("file_url")
-            if file_url:
-                st.markdown(f"📄 Archivo cargado previamente: [Ver archivo]({file_url})")
-
+    with col_right:
+        st.markdown("#### Ganadores (historial)")
+        df_winners = fetch_winners(limit=20)
+        if df_winners.empty:
+            st.write("Sin ganadores aún.")
         else:
-            st.markdown("<br><br><h4>Selecciona un GL para ver sus detalles</h4>", unsafe_allow_html=True)
+            st.dataframe(
+                df_winners[["name", "prize", "drawn_at"]],
+                use_container_width=True,
+                height=300,
+            )
+
+    st.markdown("---")
+
+    # Controles de ruleta (solo ADMIN puede disparar el sorteo)
+    st.markdown("### 🎛 Control de ruleta")
+
+    prize_input = st.text_input("Premio para este sorteo", placeholder="Ej. Tarjeta de Amazon, Día libre, etc.")
+    col_btn1, col_btn2 = st.columns([1, 3])
+
+    with col_btn1:
+        spin_btn = st.button("🎰 Girar ruleta")
+
+    if spin_btn:
+        if not is_admin:
+            st.error("Solo un usuario con código ADMIN puede girar la ruleta.")
+        else:
+            admin_name = host_name.strip() or "ADMIN"
+            winner_row, err = draw_winner(prize_input, admin_name=admin_name)
+            if err:
+                st.error(err)
+            else:
+                st.success("¡Tenemos ganador! 🎉")
+                st.balloons()
+                st.markdown(
+                    f"<div class='winner-banner'>🎉 {winner_row['name']} 🎉</div>",
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    f"<div class='winner-sub'>Premio: <b>{prize_input}</b></div>",
+                    unsafe_allow_html=True,
+                )
+
+# -------------------------------------------------
+# TAB 3: MURO EN VIVO (ESTILO KAHOOT)
+# -------------------------------------------------
+with tab_wall:
+    st.subheader("📺 Muro en vivo (tipo Kahoot)")
+
+    st.markdown(
+        "Ideal para proyectar en pantalla grande y ver cómo se va llenando la rifa en tiempo real."
+    )
+
+    df_all = fetch_participants(include_winners=True)
+    total_participants = len(df_all)
+    total_winners = fetch_winners(limit=500).shape[0]
+    df_recent = fetch_recent_participants(limit=30)
+
+    col_a, col_b, col_c = st.columns(3)
+    col_a.metric("Participantes registrados", total_participants)
+    col_b.metric("Ganadores", total_winners)
+    col_c.metric("Últimos mostrados en el muro", len(df_recent))
+
+    st.markdown("---")
+    st.markdown("### 🧑‍🤝‍🧑 Últimos participantes que se han registrado")
+
+    if df_recent.empty:
+        st.info("Todavía no hay registros. Pídele a la gente que se inscriba en la pestaña **Regístrate**.")
+    else:
+        # Mostrar en estilo “tarjetas” en una cuadrícula tipo Kahoot
+        colors = [
+            "#FFB3BA", "#FFDFBA", "#FFFFBA", "#BAFFC9", "#BAE1FF",
+            "#D7BDE2", "#F9E79F", "#A9DFBF", "#AED6F1", "#F5B7B1"
+        ]
+
+        cols = st.columns(5)
+        for idx, (_, row) in enumerate(df_recent.iterrows()):
+            c = cols[idx % len(cols)]
+            name = row.get("name", "SIN NOMBRE")
+            area = row.get("area", "")
+            team = row.get("team", "")
+            color = colors[idx % len(colors)]
+
+            card_html = f"""
+            <div style="
+                background-color:{color};
+                border-radius:22px;
+                padding:14px;
+                margin:8px 4px;
+                text-align:center;
+                font-weight:700;
+                font-size:18px;
+                box-shadow:0 4px 8px rgba(0,0,0,0.15);
+            ">
+                {name}
+                <div style="font-size:12px;font-weight:400;margin-top:6px;">
+                    {area or ''} {('<br>' + team) if team else ''}
+                </div>
+            </div>
+            """
+            c.markdown(card_html, unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.caption(
+        "Tip: puedes recargar la página o presionar el botón de recarga del navegador "
+        "para ver los nuevos participantes en tiempo casi real."
+    )
