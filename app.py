@@ -11,7 +11,7 @@ import random
 # -------------------------------------------------
 # CONFIGURACIÓN BÁSICA
 # -------------------------------------------------
-st.set_page_config(page_title="Rifa de Fin de Año", layout="wide")
+st.set_page_config(page_title="Robot CI Battle", layout="wide")
 
 st.markdown(
     """
@@ -28,32 +28,14 @@ st.markdown(
         color: #555;
         margin-bottom: 30px;
     }
-    .participant-card {
+    .robot-card {
         background-color: #f5f5f5;
         border-radius: 18px;
-        padding: 10px 14px;
+        padding: 14px 18px;
         margin: 6px 0;
-        text-align: center;
-        font-weight: 600;
-        font-size: 16px;
+        font-size: 15px;
     }
-    .winner-banner {
-        background: linear-gradient(135deg, #ffaf00, #ffdd55);
-        border-radius: 20px;
-        padding: 20px;
-        text-align: center;
-        color: #000;
-        font-weight: 800;
-        font-size: 26px;
-        margin-bottom: 15px;
-    }
-    .winner-sub {
-        font-size: 16px;
-        text-align: center;
-        color: #333;
-        margin-bottom: 20px;
-    }
-    .pill {
+    .stat-pill {
         display: inline-block;
         padding: 4px 10px;
         border-radius: 999px;
@@ -61,13 +43,36 @@ st.markdown(
         font-size: 12px;
         margin: 2px;
     }
+    .battle-banner {
+        background: linear-gradient(135deg, #00f2fe, #4facfe);
+        border-radius: 20px;
+        padding: 18px;
+        text-align: center;
+        color: #fff;
+        font-weight: 800;
+        font-size: 24px;
+        margin-bottom: 10px;
+    }
+    .battle-sub {
+        font-size: 15px;
+        text-align: center;
+        color: #333;
+        margin-bottom: 15px;
+    }
+    .question-card {
+        background-color: #ffffff;
+        border-radius: 18px;
+        padding: 18px 20px;
+        margin-top: 10px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+    }
     </style>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
 # -------------------------------------------------
-# CONEXIÓN A FIREBASE (MISMA BASE QUE USABAS)
+# CONEXIÓN A FIREBASE (MISMA ESTRUCTURA QUE LA RIFA)
 # -------------------------------------------------
 @st.cache_resource
 def init_firebase():
@@ -81,51 +86,234 @@ def init_firebase():
         firebase_admin.initialize_app(cred, {"storageBucket": bucket_name})
     return firestore.client(), storage.bucket()
 
+
 db, bucket = init_firebase()
 
 # Zona horaria MX
 TZ = pytz.timezone("America/Mexico_City")
 
 # -------------------------------------------------
-# UTILIDADES FIREBASE PARA LA RIFA
+# PREGUNTAS DEL QUIZ (MODIFICA LOS TEXTOS A TU GUSTO)
 # -------------------------------------------------
-PARTICIPANTS_COL = "raffle_participants"
-RESULTS_COL = "raffle_results"
+# Puedes alinear estas preguntas con los contenidos de Provence.
+# Solo cambia "text", "options" y "correct_option". Mantén la estructura.
 
-def register_participant(name: str, email: str = "", area: str = "", team: str = ""):
-    """Registra un participante en la colección raffle_participants."""
-    if not name.strip():
-        return False, "El nombre es obligatorio."
+QUESTIONS = [
+    {
+        "id": 1,
+        "text": "¿Qué es la mejora continua en pocas palabras?",
+        "options": [
+            "Un proyecto grande que se hace una vez al año",
+            "Pequeños cambios constantes que mejoran un proceso",
+            "Una certificación que solo aplica a líderes",
+            "Un reporte mensual de indicadores",
+        ],
+        "correct_option": "Pequeños cambios constantes que mejoran un proceso",
+        "reward": {"attack": 5},
+        "item_label": "Cañón Kaizen (+5 ATAQUE)",
+    },
+    {
+        "id": 2,
+        "text": "En un flujo de trabajo, ¿qué sería un desperdicio típico (muda)?",
+        "options": [
+            "Esperas largas entre actividades",
+            "Resolver un problema del cliente en el primer contacto",
+            "Estandarizar un proceso",
+            "Compartir buenas prácticas",
+        ],
+        "correct_option": "Esperas largas entre actividades",
+        "reward": {"speed": 5},
+        "item_label": "Turbo de Flujo (+5 VELOCIDAD)",
+    },
+    {
+        "id": 3,
+        "text": "¿Qué herramienta usarías primero para entender un problema?",
+        "options": [
+            "5 Porqués / análisis de causa raíz",
+            "Comprar un nuevo sistema",
+            "Cambiar todo el equipo de trabajo",
+            "Esperar a que se resuelva solo",
+        ],
+        "correct_option": "5 Porqués / análisis de causa raíz",
+        "reward": {"defense": 5},
+        "item_label": "Escudo de Causa Raíz (+5 DEFENSA)",
+    },
+    {
+        "id": 4,
+        "text": "Cuando hablamos de estandarizar (Standardize / Seiketsu), nos referimos a...",
+        "options": [
+            "Documentar y alinear la mejor forma de trabajar",
+            "Revisar solo cuando hay auditoría",
+            "Guardar las ideas sin compartirlas",
+            "Dejar que cada quien trabaje como quiera",
+        ],
+        "correct_option": "Documentar y alinear la mejor forma de trabajar",
+        "reward": {"mobility": 5},
+        "item_label": "Alas de Estandarización (+5 MOVILIDAD)",
+    },
+    {
+        "id": 5,
+        "text": "¿Qué actitud ayuda más a la mejora continua?",
+        "options": [
+            "Buscar culpables de los errores",
+            "Ver los problemas como oportunidades de mejorar",
+            "Ignorar los defectos si el cliente no se queja",
+            "Hacer cambios sin avisar al equipo",
+        ],
+        "correct_option": "Ver los problemas como oportunidades de mejorar",
+        "reward": {"attack": 3, "defense": 3, "speed": 3},
+        "item_label": "Core de Mentalidad CI (+3 a TODAS LAS STATS)",
+    },
+]
 
-    name = name.strip().upper()
+TOTAL_QUESTIONS = len(QUESTIONS)
 
-    # Evitar duplicados exactos por nombre+email (modo simple)
-    docs = db.collection(PARTICIPANTS_COL).where("name", "==", name).stream()
-    for d in docs:
-        data = d.to_dict()
-        if email and data.get("email", "").strip().lower() == email.strip().lower():
-            return False, "Ya estás registrado con ese correo."
+# -------------------------------------------------
+# COLECCIONES EN FIRESTORE
+# -------------------------------------------------
+ROBOTS_COL = "ci_robots"
+ANSWERS_COL = "ci_robot_answers"  # opcional, para auditoría de respuestas
 
-    doc_id = str(uuid.uuid4())
+
+# -------------------------------------------------
+# FUNCIONES DE NEGOCIO (ROBOTS / QUIZ)
+# -------------------------------------------------
+def get_or_create_robot(team_name: str):
+    """Obtiene un robot por nombre de equipo o lo crea si no existe."""
+    if not team_name.strip():
+        return None, None
+
+    team = team_name.strip().upper()
+
+    query = (
+        db.collection(ROBOTS_COL)
+        .where("team_name", "==", team)
+        .limit(1)
+        .stream()
+    )
+    for doc in query:
+        data = doc.to_dict()
+        data["_id"] = doc.id
+        return doc.id, data
+
+    # Crear nuevo robot
     now = datetime.now(TZ)
-
-    payload = {
-        "name": name,
-        "email": email.strip(),
-        "area": area.strip(),
-        "team": team.strip(),
+    base_stats = {
+        "team_name": team,
         "created_at": now.isoformat(),
-        "created_at_ts": now,
-        "has_won": False,
-        "prize": None,
-        "active": True,
+        "created_ts": now,
+        "attack": 0,
+        "defense": 0,
+        "speed": 0,
+        "mobility": 0,
+        "items": [],
+        "current_q_index": 0,
+        "completed": False,
     }
-    db.collection(PARTICIPANTS_COL).document(doc_id).set(payload)
-    return True, doc_id
+    doc_ref = db.collection(ROBOTS_COL).document()
+    doc_ref.set(base_stats)
+    base_stats["_id"] = doc_ref.id
+    return doc_ref.id, base_stats
 
-def fetch_participants(include_winners: bool = True):
-    """Trae todos los participantes; si include_winners=False, filtra en Python."""
-    docs = db.collection(PARTICIPANTS_COL).stream()
+
+def save_answer(robot_id: str, team_name: str, question: dict, selected: str, is_correct: bool):
+    """Guarda la respuesta de un robot para fines de tracking (opcional)."""
+    now = datetime.now(TZ)
+    payload = {
+        "robot_id": robot_id,
+        "team_name": team_name,
+        "question_id": question["id"],
+        "question_text": question["text"],
+        "selected": selected,
+        "correct_option": question["correct_option"],
+        "is_correct": is_correct,
+        "answered_at": now.isoformat(),
+        "answered_ts": now,
+    }
+    doc_id = str(uuid.uuid4())
+    db.collection(ANSWERS_COL).document(doc_id).set(payload)
+
+
+def apply_reward(robot_data: dict, question: dict):
+    """Aplica el reward de la pregunta al robot y devuelve los cambios aplicados."""
+    reward = question.get("reward", {}) or {}
+
+    # Asegurar campos
+    for stat in ["attack", "defense", "speed", "mobility"]:
+        if stat not in robot_data or robot_data[stat] is None:
+            robot_data[stat] = 0
+
+    changes = {}
+
+    for stat, val in reward.items():
+        if stat in robot_data:
+            robot_data[stat] += val
+            changes[stat] = val
+
+    items = robot_data.get("items", [])
+    item_label = question.get("item_label")
+    if item_label:
+        items.append(item_label)
+    robot_data["items"] = items
+
+    return robot_data, changes
+
+
+def update_robot_after_answer(robot_id: str, robot_data: dict, question: dict, selected_option: str):
+    """Actualiza robot según la respuesta y avanza a la siguiente pregunta."""
+    correct = selected_option == question["correct_option"]
+
+    # Guardar respuesta (tracking)
+    save_answer(robot_id, robot_data["team_name"], question, selected_option, correct)
+
+    feedback = ""
+    if correct:
+        robot_data, changes = apply_reward(robot_data, question)
+        # Mensaje de feedback amistoso
+        if changes:
+            gains = []
+            if "attack" in changes:
+                gains.append(f"+{changes['attack']} ATAQUE")
+            if "defense" in changes:
+                gains.append(f"+{changes['defense']} DEFENSA")
+            if "speed" in changes:
+                gains.append(f"+{changes['speed']} VELOCIDAD")
+            if "mobility" in changes:
+                gains.append(f"+{changes['mobility']} MOVILIDAD")
+            gains_txt = ", ".join(gains)
+            feedback = f"✅ ¡Respuesta correcta! Tu robot ganó: {gains_txt}."
+        else:
+            feedback = "✅ ¡Respuesta correcta! Tu robot avanzó de ronda."
+    else:
+        feedback = "❌ Respuesta incorrecta. Esta vez tu robot no recibe mejora, pero sigues avanzando."
+
+    # Avanzar índice de pregunta
+    current_idx = robot_data.get("current_q_index", 0)
+    next_idx = current_idx + 1
+
+    completed = next_idx >= TOTAL_QUESTIONS
+
+    robot_data["current_q_index"] = next_idx
+    robot_data["completed"] = completed
+
+    # Actualizar en Firestore
+    db.collection(ROBOTS_COL).document(robot_id).update(
+        {
+            "attack": robot_data["attack"],
+            "defense": robot_data["defense"],
+            "speed": robot_data["speed"],
+            "mobility": robot_data["mobility"],
+            "items": robot_data["items"],
+            "current_q_index": robot_data["current_q_index"],
+            "completed": robot_data["completed"],
+        }
+    )
+
+    return robot_data, feedback, correct
+
+
+def fetch_all_robots():
+    docs = db.collection(ROBOTS_COL).stream()
     rows = []
     for d in docs:
         data = d.to_dict()
@@ -133,330 +321,329 @@ def fetch_participants(include_winners: bool = True):
         rows.append(data)
     df = pd.DataFrame(rows) if rows else pd.DataFrame()
     if not df.empty:
-        # Orden por fecha
-        if "created_at_ts" in df.columns:
-            df = df.sort_values("created_at_ts")
+        if "created_ts" in df.columns:
+            df = df.sort_values("created_ts")
         elif "created_at" in df.columns:
             df = df.sort_values("created_at")
-        if not include_winners and "has_won" in df.columns:
-            df = df[~df["has_won"].fillna(False)]
     return df
 
-def fetch_recent_participants(limit: int = 12):
-    """Últimos participantes (para la vista tipo Kahoot)."""
-    docs = (
-        db.collection(PARTICIPANTS_COL)
-        .order_by("created_at_ts", direction=firestore.Query.DESCENDING)
-        .limit(limit)
-        .stream()
-    )
-    rows = []
-    for d in docs:
-        data = d.to_dict()
-        data["_id"] = d.id
-        rows.append(data)
-    df = pd.DataFrame(rows) if rows else pd.DataFrame()
-    return df
-
-def fetch_winners(limit: int = 50):
-    """Historial de ganadores."""
-    docs = (
-        db.collection(RESULTS_COL)
-        .order_by("drawn_at_ts", direction=firestore.Query.DESCENDING)
-        .limit(limit)
-        .stream()
-    )
-    rows = []
-    for d in docs:
-        data = d.to_dict()
-        data["_id"] = d.id
-        rows.append(data)
-    df = pd.DataFrame(rows) if rows else pd.DataFrame()
-    return df
-
-def draw_winner(prize: str, admin_name: str = "ADMIN"):
-    """Selecciona ganador aleatorio entre quienes no han ganado aún."""
-    if not prize.strip():
-        return None, "Define un premio para esta ronda."
-
-    df = fetch_participants(include_winners=False)
-    if df.empty:
-        return None, "No hay participantes disponibles (o ya todos ganaron)."
-
-    winner_row = df.sample(1).iloc[0]
-    winner_id = winner_row["_id"]
-    winner_name = winner_row["name"]
-
-    now = datetime.now(TZ)
-
-    # Actualizar al participante (marcar como ganador)
-    db.collection(PARTICIPANTS_COL).document(winner_id).update(
-        {
-            "has_won": True,
-            "prize": prize.strip(),
-        }
-    )
-
-    # Registrar resultado en la colección de resultados
-    result_payload = {
-        "participant_id": winner_id,
-        "name": winner_name,
-        "prize": prize.strip(),
-        "drawn_at": now.isoformat(),
-        "drawn_at_ts": now,
-        "drawn_by": admin_name,
-    }
-    result_id = str(uuid.uuid4())
-    db.collection(RESULTS_COL).document(result_id).set(result_payload)
-
-    return winner_row, None
-
-def get_last_winner():
-    """Último ganador registrado."""
-    df = fetch_winners(limit=1)
-    if df.empty:
-        return None
-    return df.iloc[0]
 
 # -------------------------------------------------
-# CONTROL DE ADMIN (PUENTE CON SECRETS)
+# CONTROL DE ADMIN (MISMO PATRÓN QUE LA RIFA)
 # -------------------------------------------------
 def check_is_admin():
-    """Usa un password guardado en secrets para permitir girar la ruleta."""
+    """Usa un password guardado en secrets para permitir el panel admin."""
     admin_pw_secret = None
     try:
         admin_pw_secret = st.secrets["raffle_admin"]["password"]
     except Exception:
-        # Si no está configurado, nadie es admin (pero no rompas la app)
+        # Si no está configurado, nadie es admin (pero no rompes la app)
         return False
 
     entered_pw = st.session_state.get("admin_password_value", "")
     return bool(admin_pw_secret) and entered_pw == admin_pw_secret
 
+
 # -------------------------------------------------
 # SIDEBAR: DATOS DE USUARIO / ADMIN
 # -------------------------------------------------
-st.sidebar.title("🎄 Rifa de Fin de Año")
-host_name = st.sidebar.text_input("Tu nombre (host / admin / invitado)", value="")
+st.sidebar.title("🤖 Robot CI Battle")
+host_name = st.sidebar.text_input("Tu nombre (host / facilitador)", value="")
+
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔐 Admin (solo para girar ruleta)")
+st.sidebar.markdown("### 🔐 Admin (para panel y batallas)")
 admin_pw_input = st.sidebar.text_input(
     "Código admin", type="password", key="admin_password_value"
 )
+
 is_admin = check_is_admin()
 if is_admin:
     st.sidebar.success("Modo ADMIN activado.")
 else:
-    st.sidebar.info("Si eres admin, ingresa el código para poder girar la ruleta.")
+    st.sidebar.info("Si eres admin, ingresa el código para ver el panel de batallas.")
 
 st.sidebar.markdown("---")
-st.sidebar.caption("La información se guarda en Firebase en tiempo real.")
+st.sidebar.caption("Los robots y respuestas se guardan en Firebase en tiempo real.")
 
 # -------------------------------------------------
 # NAVEGACIÓN SUPERIOR (TABS)
 # -------------------------------------------------
-st.markdown("<div class='big-title'>Rifa de Fin de Año</div>", unsafe_allow_html=True)
+st.markdown("<div class='big-title'>Robot CI Battle</div>", unsafe_allow_html=True)
 st.markdown(
-    "<div class='subtitle'>Regístrate, mira la rifa en vivo y celebra a los ganadores 🎁</div>",
+    "<div class='subtitle'>Responde preguntas de Mejora Continua, equipa tu robot y compite en batallas 🛠️⚙️</div>",
     unsafe_allow_html=True,
 )
 
-tab_registro, tab_rifa, tab_wall = st.tabs(
-    ["🙋 Regístrate", "🎰 Rifa en tiempo real", "📺 Muro en vivo (tipo Kahoot)"]
+quiz_tab, battle_tab, admin_tab = st.tabs(
+    ["🧩 Construye tu robot", "⚔️ Batalla de robots", "📊 Panel Admin"]
 )
 
 # -------------------------------------------------
-# TAB 1: REGISTRO DE PARTICIPANTES
+# TAB 1: CONSTRUYE TU ROBOT (QUIZ)
 # -------------------------------------------------
-with tab_registro:
-    st.subheader("🙋 Regístrate para la rifa")
+with quiz_tab:
+    st.subheader("🧩 Construye tu robot CI a partir de tus respuestas")
 
     st.markdown(
-        "Completa tus datos para participar en la rifa de fin de año. "
-        "Solo necesitas registrarte **una vez**."
+        """
+        1. Escribe el nombre de tu equipo (por ejemplo, **Team Kaizen**, **CI Avengers**, etc.).  
+        2. Responde cada pregunta.  
+        3. Cada respuesta correcta te da una mejora (arma, escudo, turbo, etc.).  
+        4. Al final tendrás un robot único para la batalla.
+        """
     )
 
-    with st.form("registration_form", clear_on_submit=True):
-        col_a, col_b = st.columns(2)
-        with col_a:
-            name = st.text_input("Nombre completo*", placeholder="Ej. ENRIQUE NÁPOLES")
-            email = st.text_input("Correo (opcional)", placeholder="empresa@correo.com")
-        with col_b:
-            area = st.text_input("Área / Departamento", placeholder="Ej. R2R, PTP, OTC...")
-            team = st.text_input("Equipo / Sede", placeholder="Ej. NAMER, LATAM, CDMX...")
-
-        submitted = st.form_submit_button("✅ Registrarme")
-        if submitted:
-            ok, msg = register_participant(name, email, area, team)
-            if ok:
-                st.success("Registro completado. ¡Ya estás participando en la rifa! 🎉")
-                st.balloons()
-            else:
-                st.error(msg)
-
-    st.markdown("---")
-
-    # Resumen rápido
-    df_all = fetch_participants(include_winners=True)
-    total_participants = len(df_all)
-    unique_names = df_all["name"].nunique() if not df_all.empty else 0
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Participantes registrados", total_participants)
-    col2.metric("Personas únicas", unique_names)
-    col3.metric(
-        "Ganadores hasta ahora",
-        fetch_winners(limit=500).shape[0]
+    team_name_input = st.text_input(
+        "Nombre de tu equipo / robot*",
+        placeholder="Ej. TEAM KAIZEN",
+        key="team_name_input",
     )
 
-    if not df_all.empty:
-        with st.expander("Ver listado de participantes"):
-            st.dataframe(
-                df_all[["name", "email", "area", "team", "has_won", "prize"]],
-                use_container_width=True,
-            )
+    col_btn_team, _ = st.columns([1, 3])
+    with col_btn_team:
+        load_robot_btn = st.button("🚀 Crear / Cargar robot")
 
-# -------------------------------------------------
-# TAB 2: RIFA EN TIEMPO REAL (ADMIN GIRA, TODOS VEN)
-# -------------------------------------------------
-with tab_rifa:
-    st.subheader("🎰 Rifa en tiempo real")
-
-    last_winner = get_last_winner()
-    if last_winner is not None:
-        st.markdown(
-            f"<div class='winner-banner'>🎉 ¡Último ganador: {last_winner['name']}! 🎉</div>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            f"<div class='winner-sub'>Premio: <b>{last_winner['prize']}</b> | "
-            f"Sorteado por: <b>{last_winner.get('drawn_by', 'ADMIN')}</b></div>",
-            unsafe_allow_html=True,
-        )
-    else:
-        st.info("Aún no hay ganadores. ¡Sé el primero en girar la ruleta (modo admin)!")
-
-    # Vista general de participantes y ganadores
-    col_left, col_right = st.columns([2, 1])
-    with col_left:
-        st.markdown("#### Participantes disponibles para ganar")
-
-        df_no_winners = fetch_participants(include_winners=False)
-        if df_no_winners.empty:
-            st.warning("No hay participantes disponibles (o todos ya ganaron).")
+    if load_robot_btn:
+        if not team_name_input.strip():
+            st.warning("Escribe un nombre de equipo para continuar.")
         else:
-            st.write(f"Participantes disponibles: **{len(df_no_winners)}**")
-            names_preview = df_no_winners["name"].tolist()
-            # Mostrar algunos nombres en "píldoras"
-            pills_html = " ".join(
-                [f"<span class='pill'>{n}</span>" for n in names_preview[:60]]
-            )
-            st.markdown(pills_html, unsafe_allow_html=True)
-
-    with col_right:
-        st.markdown("#### Ganadores (historial)")
-        df_winners = fetch_winners(limit=20)
-        if df_winners.empty:
-            st.write("Sin ganadores aún.")
-        else:
-            st.dataframe(
-                df_winners[["name", "prize", "drawn_at"]],
-                use_container_width=True,
-                height=300,
-            )
-
-    st.markdown("---")
-
-    # Controles de ruleta (solo ADMIN puede disparar el sorteo)
-    st.markdown("### 🎛 Control de ruleta")
-
-    prize_input = st.text_input("Premio para este sorteo", placeholder="Ej. Tarjeta de Amazon, Día libre, etc.")
-    col_btn1, col_btn2 = st.columns([1, 3])
-
-    with col_btn1:
-        spin_btn = st.button("🎰 Girar ruleta")
-
-    if spin_btn:
-        if not is_admin:
-            st.error("Solo un usuario con código ADMIN puede girar la ruleta.")
-        else:
-            admin_name = host_name.strip() or "ADMIN"
-            winner_row, err = draw_winner(prize_input, admin_name=admin_name)
-            if err:
-                st.error(err)
+            robot_id, robot_data = get_or_create_robot(team_name_input)
+            if robot_id:
+                st.session_state["robot_id"] = robot_id
+                st.session_state["team_name"] = robot_data["team_name"]
+                st.session_state["robot_loaded"] = True
+                st.success(f"Robot cargado para el equipo: {robot_data['team_name']}")
             else:
-                st.success("¡Tenemos ganador! 🎉")
-                st.balloons()
-                st.markdown(
-                    f"<div class='winner-banner'>🎉 {winner_row['name']} 🎉</div>",
-                    unsafe_allow_html=True,
-                )
-                st.markdown(
-                    f"<div class='winner-sub'>Premio: <b>{prize_input}</b></div>",
-                    unsafe_allow_html=True,
-                )
+                st.error("No se pudo crear/cargar el robot. Intenta de nuevo.")
+
+    # Si ya se cargó el robot previamente en la sesión
+    robot_id = st.session_state.get("robot_id")
+    robot_loaded = st.session_state.get("robot_loaded", False)
+
+    if robot_loaded and robot_id:
+        # Refrescar datos desde Firestore por si se abrió en varias pestañas
+        doc = db.collection(ROBOTS_COL).document(robot_id).get()
+        if not doc.exists:
+            st.error("No se encontró el robot en la base. Vuelve a crearlo.")
+        else:
+            robot_data = doc.to_dict()
+            st.markdown("---")
+
+            # Mostrar stats actuales del robot
+            st.markdown("### 🤖 Tu robot actualmente")
+
+            stats_cols = st.columns(4)
+            stats_cols[0].metric("ATAQUE", robot_data.get("attack", 0))
+            stats_cols[1].metric("DEFENSA", robot_data.get("defense", 0))
+            stats_cols[2].metric("VELOCIDAD", robot_data.get("speed", 0))
+            stats_cols[3].metric("MOVILIDAD", robot_data.get("mobility", 0))
+
+            items = robot_data.get("items", []) or []
+            if items:
+                st.markdown("#### 🧩 Mejoras obtenidas")
+                for it in items:
+                    st.markdown(f"- {it}")
+            else:
+                st.info("Aún no tienes mejoras. Responde preguntas para equipar a tu robot.")
+
+            # Progreso del quiz
+            current_q_index = robot_data.get("current_q_index", 0)
+            st.markdown("---")
+            st.markdown("### 📌 Preguntas")
+            st.progress(min(current_q_index, TOTAL_QUESTIONS) / TOTAL_QUESTIONS)
+            st.caption(
+                f"Pregunta {min(current_q_index + 1, TOTAL_QUESTIONS)} de {TOTAL_QUESTIONS}"
+                if current_q_index < TOTAL_QUESTIONS
+                else f"Has respondido las {TOTAL_QUESTIONS} preguntas. ¡Tu robot está listo para la batalla!"
+            )
+
+            if current_q_index >= TOTAL_QUESTIONS:
+                st.success("🎉 Has completado el quiz. Lleva este robot a la pestaña de batallas.")
+            else:
+                q = QUESTIONS[current_q_index]
+
+                with st.form(key=f"question_form_{q['id']}"):
+                    st.markdown("<div class='question-card'>", unsafe_allow_html=True)
+                    st.markdown(f"**{q['text']}**")
+
+                    selected_option = st.radio(
+                        "Selecciona una respuesta:",
+                        q["options"],
+                        key=f"q_{q['id']}_radio",
+                    )
+
+                    submit_answer = st.form_submit_button("Responder")
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+                if submit_answer:
+                    if not selected_option:
+                        st.warning("Selecciona una opción para continuar.")
+                    else:
+                        robot_data, feedback, correct = update_robot_after_answer(
+                            robot_id, robot_data, q, selected_option
+                        )
+                        if correct:
+                            st.success(feedback)
+                        else:
+                            st.error(feedback)
+                        st.experimental_rerun()
 
 # -------------------------------------------------
-# TAB 3: MURO EN VIVO (ESTILO KAHOOT)
+# TAB 2: BATALLA DE ROBOTS (PARA EL SHOW EN EL TOWNHALL)
 # -------------------------------------------------
-with tab_wall:
-    st.subheader("📺 Muro en vivo (tipo Kahoot)")
+with battle_tab:
+    st.subheader("⚔️ Batalla de robots")
 
     st.markdown(
-        "Ideal para proyectar en pantalla grande y ver cómo se va llenando la rifa en tiempo real."
+        """
+        Aquí puedes simular batallas entre robots ya creados.  
+        Ideal para el cierre del Town Hall: eliges dos equipos y vemos quién gana
+        con base en las estadísticas acumuladas.
+        """
     )
 
-    df_all = fetch_participants(include_winners=True)
-    total_participants = len(df_all)
-    total_winners = fetch_winners(limit=500).shape[0]
-    df_recent = fetch_recent_participants(limit=30)
+    df_robots = fetch_all_robots()
 
-    col_a, col_b, col_c = st.columns(3)
-    col_a.metric("Participantes registrados", total_participants)
-    col_b.metric("Ganadores", total_winners)
-    col_c.metric("Últimos mostrados en el muro", len(df_recent))
-
-    st.markdown("---")
-    st.markdown("### 🧑‍🤝‍🧑 Últimos participantes que se han registrado")
-
-    if df_recent.empty:
-        st.info("Todavía no hay registros. Pídele a la gente que se inscriba en la pestaña **Regístrate**.")
+    if df_robots.empty:
+        st.info("Todavía no hay robots creados. Pídele a los equipos que completen el quiz.")
     else:
-        # Mostrar en estilo “tarjetas” en una cuadrícula tipo Kahoot
-        colors = [
-            "#FFB3BA", "#FFDFBA", "#FFFFBA", "#BAFFC9", "#BAE1FF",
-            "#D7BDE2", "#F9E79F", "#A9DFBF", "#AED6F1", "#F5B7B1"
-        ]
+        st.markdown("### 🤖 Robots disponibles")
+        st.dataframe(
+            df_robots[["team_name", "attack", "defense", "speed", "mobility", "completed"]],
+            use_container_width=True,
+        )
 
-        cols = st.columns(5)
-        for idx, (_, row) in enumerate(df_recent.iterrows()):
-            c = cols[idx % len(cols)]
-            name = row.get("name", "SIN NOMBRE")
-            area = row.get("area", "")
-            team = row.get("team", "")
-            color = colors[idx % len(colors)]
+        teams = df_robots["team_name"].unique().tolist()
 
-            card_html = f"""
-            <div style="
-                background-color:{color};
-                border-radius:22px;
-                padding:14px;
-                margin:8px 4px;
-                text-align:center;
-                font-weight:700;
-                font-size:18px;
-                box-shadow:0 4px 8px rgba(0,0,0,0.15);
-            ">
-                {name}
-                <div style="font-size:12px;font-weight:400;margin-top:6px;">
-                    {area or ''} {('<br>' + team) if team else ''}
-                </div>
-            </div>
+        if len(teams) < 2:
+            st.warning("Se necesitan al menos 2 robots/equipos para simular una batalla.")
+        else:
+            col_b1, col_b2 = st.columns(2)
+            with col_b1:
+                team1 = st.selectbox("Robot / Equipo 1", teams, key="battle_team1")
+            with col_b2:
+                # lista sin el team1 para evitar que se elija el mismo
+                teams_2 = [t for t in teams if t != team1]
+                team2 = st.selectbox("Robot / Equipo 2", teams_2, key="battle_team2")
+
+            def compute_score(row):
+                """Puntaje simple combinado de stats + aleatoriedad suave."""
+                atk = row.get("attack", 0) or 0
+                dfs = row.get("defense", 0) or 0
+                spd = row.get("speed", 0) or 0
+                mob = row.get("mobility", 0) or 0
+                base_score = atk * 1.5 + dfs * 1.2 + spd * 1.3 + mob
+                random_bonus = random.uniform(-5, 5)
+                return base_score + random_bonus
+
+            battle_btn = st.button("🔥 Simular batalla")
+
+            if battle_btn:
+                row1 = df_robots[df_robots["team_name"] == team1].iloc[0]
+                row2 = df_robots[df_robots["team_name"] == team2].iloc[0]
+
+                score1 = compute_score(row1)
+                score2 = compute_score(row2)
+
+                if score1 > score2:
+                    winner_team = team1
+                    loser_team = team2
+                    winner_row = row1
+                    loser_row = row2
+                elif score2 > score1:
+                    winner_team = team2
+                    loser_team = team1
+                    winner_row = row2
+                    loser_row = row1
+                else:
+                    # Empate: desempatar aleatoriamente
+                    winner_team = random.choice([team1, team2])
+                    loser_team = team2 if winner_team == team1 else team1
+                    winner_row = df_robots[df_robots["team_name"] == winner_team].iloc[0]
+                    loser_row = df_robots[df_robots["team_name"] == loser_team].iloc[0]
+
+                st.markdown(
+                    f"<div class='battle-banner'>🏆 ¡Gana {winner_team}!</div>",
+                    unsafe_allow_html=True,
+                )
+
+                st.markdown(
+                    "<div class='battle-sub'>La combinación de mejoras, stats y un poco de suerte definió al ganador.\n"
+                    "Usa esto para hablar de cómo las buenas decisiones en mejora continua van sumando ventajas.</div>",
+                    unsafe_allow_html=True,
+                )
+
+                col_w, col_l = st.columns(2)
+
+                def render_robot(col, row, title):
+                    col.markdown(f"#### {title}: {row['team_name']}")
+                    col.markdown("<div class='robot-card'>", unsafe_allow_html=True)
+                    col.markdown(
+                        f"<span class='stat-pill'>ATAQUE: {int(row.get('attack', 0) or 0)}</span> "
+                        f"<span class='stat-pill'>DEFENSA: {int(row.get('defense', 0) or 0)}</span> "
+                        f"<span class='stat-pill'>VELOCIDAD: {int(row.get('speed', 0) or 0)}</span> "
+                        f"<span class='stat-pill'>MOVILIDAD: {int(row.get('mobility', 0) or 0)}</span>",
+                        unsafe_allow_html=True,
+                    )
+                    items = row.get("items", []) or []
+                    if items:
+                        col.markdown("<br><b>Mejoras equipadas:</b>", unsafe_allow_html=True)
+                        for it in items:
+                            col.markdown(f"- {it}")
+                    col.markdown("</div>", unsafe_allow_html=True)
+
+                render_robot(col_w, winner_row, "Ganador")
+                render_robot(col_l, loser_row, "Rival")
+
+        st.markdown("---")
+        st.caption(
+            "Puedes repetir la batalla con diferentes equipos para hacer el cierre del Town Hall más dinámico."
+        )
+
+# -------------------------------------------------
+# TAB 3: PANEL ADMIN (VISTA GENERAL)
+# -------------------------------------------------
+with admin_tab:
+    st.subheader("📊 Panel Admin")
+
+    if not is_admin:
+        st.warning("Esta sección solo está disponible en modo ADMIN.")
+    else:
+        st.markdown(
             """
-            c.markdown(card_html, unsafe_allow_html=True)
+            Aquí puedes ver todos los robots, sus estadísticas y el avance del quiz.  
+            Útil para revisar cuántos equipos completaron el juego y qué tan "armados" están.
+            """
+        )
 
-    st.markdown("---")
-    st.caption(
-        "Tip: puedes recargar la página o presionar el botón de recarga del navegador "
-        "para ver los nuevos participantes en tiempo casi real."
-    )
+        df_robots_admin = fetch_all_robots()
+        if df_robots_admin.empty:
+            st.info("Todavía no hay robots registrados.")
+        else:
+            st.markdown("### 📋 Listado de robots")
+            st.dataframe(
+                df_robots_admin[
+                    [
+                        "team_name",
+                        "attack",
+                        "defense",
+                        "speed",
+                        "mobility",
+                        "items",
+                        "current_q_index",
+                        "completed",
+                        "created_at",
+                    ]
+                ],
+                use_container_width=True,
+            )
+
+            total_robots = len(df_robots_admin)
+            completed_count = int(df_robots_admin["completed"].fillna(False).sum())
+
+            col_m1, col_m2 = st.columns(2)
+            col_m1.metric("Robots / Equipos creados", total_robots)
+            col_m2.metric("Robots que completaron el quiz", completed_count)
+
+        st.markdown("---")
+        st.caption("Admin tip: puedes limpiar colecciones desde la consola de Firebase si quieres reiniciar el juego.")
