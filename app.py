@@ -486,7 +486,7 @@ with quiz_tab:
                             st.success(feedback)
                         else:
                             st.error(feedback)
-                        st.experimental_rerun()
+                        st.rerun()
 
 # -------------------------------------------------
 # TAB 2: BATALLA DE ROBOTS (PARA EL SHOW EN EL TOWNHALL)
