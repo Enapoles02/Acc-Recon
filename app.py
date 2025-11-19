@@ -290,7 +290,8 @@ with quiz_tab:
 
             elif idx < TOTAL_QUESTIONS:
                 q = QUESTIONS[idx]
-                                st.markdown(f"### Pregunta {idx+1}")                st.markdown(f"**{q['text']}**")
+                                                st.markdown(f"### Pregunta {idx+1}")
+                st.markdown(f"**{q['text']}**")
 
                 with st.form(f"qform{idx}"):
                     resp = st.radio("Selecciona una opción", q["options"], key=f"resp_{idx}")
